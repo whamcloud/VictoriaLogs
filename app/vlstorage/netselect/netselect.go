@@ -3,6 +3,7 @@ package netselect
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -61,6 +62,27 @@ const (
 	//
 	// It must be updated every time the protocol changes.
 	QueryProtocolVersion = "v2"
+)
+
+var (
+	// minAvailableStorageNodes is the minimum number of storage nodes that must be available for a query to succeed.
+	// If fewer nodes are available, the query will fail.
+	// Set to 0 to allow queries to succeed with any number of available nodes.
+	minAvailableStorageNodes = flag.Int("select.minAvailableStorageNodes", 0, "The minimum number of storage nodes that must be available for a query to succeed. "+
+		"If fewer nodes are available, the query will fail. Set to 0 to allow queries to succeed with any number of available nodes (fault-tolerant mode)")
+
+	// maxUnavailableStorageNodes is the maximum number of storage nodes that can be unavailable for a query to still succeed.
+	// If more nodes are unavailable, the query will fail.
+	// Set to -1 to disable this check (allow any number of nodes to be unavailable).
+	maxUnavailableStorageNodes = flag.Int("select.maxUnavailableStorageNodes", -1, "The maximum number of storage nodes that can be unavailable for a query to still succeed. "+
+		"If more nodes are unavailable, the query will fail. Set to -1 to disable this check (allow any number of nodes to be unavailable)")
+)
+
+var (
+	// Metrics for tracking partial failures
+	partialQueryFailures = metrics.NewCounter("vl_select_partial_query_failures_total")
+	unavailableNodes     = metrics.NewCounter("vl_select_unavailable_nodes_total")
+	partialResults       = metrics.NewCounter("vl_select_partial_results_total")
 )
 
 // Storage is a network storage for querying remote storage nodes in the cluster.
@@ -351,12 +373,14 @@ func (s *Storage) RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.
 }
 
 func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBlockFunc) error {
-	ctxWithCancel, cancel := contextutil.NewStopChanContext(stopCh)
+	ctx, cancel := contextutil.NewStopChanContext(stopCh)
 	defer cancel()
 
-	qctxLocal := qctx.WithContext(ctxWithCancel)
+	qctxLocal := qctx.WithContext(ctx)
 
 	errs := make([]error, len(s.sns))
+	var successfulNodes int
+	var mu sync.Mutex
 
 	var wg sync.WaitGroup
 	for i := range s.sns {
@@ -368,21 +392,120 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 			err := sn.runQuery(qctxLocal, func(db *logstorage.DataBlock) {
 				writeBlock(uint(nodeIdx), db)
 			})
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					sn.sendErrors.Inc()
-				}
 
-				// Cancel the remaining parallel queries
-				cancel()
-			}
-
+			mu.Lock()
 			errs[nodeIdx] = err
+			if err == nil {
+				successfulNodes++
+			} else if !errors.Is(err, context.Canceled) {
+				sn.sendErrors.Inc()
+				unavailableNodes.Inc()
+			}
+			mu.Unlock()
 		}(i)
 	}
 	wg.Wait()
 
-	return getFirstNonCancelError(errs)
+	return s.checkQueryResults(errs, successfulNodes)
+}
+
+// checkQueryResults validates if the query results meet the minimum availability requirements
+func (s *Storage) checkQueryResults(errs []error, successfulNodes int) error {
+	totalNodes := len(s.sns)
+	failedNodes := totalNodes - successfulNodes
+
+	// Log details about failed nodes for debugging
+	if failedNodes > 0 {
+		failedAddrs := make([]string, 0, failedNodes)
+		canceledAddrs := make([]string, 0, failedNodes)
+		for i, err := range errs {
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					canceledAddrs = append(canceledAddrs, s.sns[i].addr)
+				} else {
+					failedAddrs = append(failedAddrs, s.sns[i].addr)
+				}
+			}
+		}
+		if len(failedAddrs) > 0 {
+			logger.Warnf("Storage nodes unavailable: %v", failedAddrs)
+		}
+		if len(canceledAddrs) > 0 {
+			logger.Warnf("Storage nodes canceled (likely due to timeout): %v", canceledAddrs)
+		}
+	}
+
+	// Check minimum available nodes requirement
+	if *minAvailableStorageNodes > 0 && successfulNodes < *minAvailableStorageNodes {
+		partialQueryFailures.Inc()
+		return fmt.Errorf("insufficient available storage nodes: got %d, need at least %d out of %d total nodes; "+
+			"failed nodes: %d; consider adjusting -select.minAvailableStorageNodes",
+			successfulNodes, *minAvailableStorageNodes, totalNodes, failedNodes)
+	}
+
+	// Check maximum unavailable nodes requirement
+	if *maxUnavailableStorageNodes >= 0 && failedNodes > *maxUnavailableStorageNodes {
+		partialQueryFailures.Inc()
+		return fmt.Errorf("too many unavailable storage nodes: %d failed, maximum allowed %d out of %d total nodes; "+
+			"consider adjusting -select.maxUnavailableStorageNodes",
+			failedNodes, *maxUnavailableStorageNodes, totalNodes)
+	}
+
+	// If we have some successful nodes, log partial failure but continue
+	if successfulNodes > 0 && failedNodes > 0 {
+		partialResults.Inc()
+		logger.Warnf("Query completed with partial results: %d/%d storage nodes available (fault-tolerant mode)",
+			successfulNodes, totalNodes)
+		return nil
+	}
+
+	// If no nodes succeeded, return the first non-canceled error with context
+	if successfulNodes == 0 {
+		partialQueryFailures.Inc()
+		firstErr := getFirstNonCancelError(errs)
+		if firstErr != nil {
+			return fmt.Errorf("all %d storage nodes failed; first error: %w", totalNodes, firstErr)
+		}
+
+		// Count different types of errors for better debugging
+		canceledCount := 0
+		for _, err := range errs {
+			if errors.Is(err, context.Canceled) {
+				canceledCount++
+			}
+		}
+
+		if canceledCount == totalNodes {
+			return fmt.Errorf("all %d storage nodes failed due to timeout/cancellation (query timeout may be too short)", totalNodes)
+		}
+		return fmt.Errorf("all %d storage nodes failed with no specific error", totalNodes)
+	}
+
+	return nil
+}
+
+// GetNodeStatus returns information about the status of storage nodes
+func (s *Storage) GetNodeStatus() map[string]interface{} {
+	status := make(map[string]interface{})
+	nodes := make([]map[string]interface{}, len(s.sns))
+
+	for i, sn := range s.sns {
+		nodes[i] = map[string]interface{}{
+			"addr":        sn.addr,
+			"scheme":      sn.scheme,
+			"send_errors": sn.sendErrors.Get(),
+		}
+	}
+
+	status["total_nodes"] = len(s.sns)
+	status["nodes"] = nodes
+	status["min_available_nodes"] = *minAvailableStorageNodes
+	status["max_unavailable_nodes"] = *maxUnavailableStorageNodes
+	status["partial_query_failures"] = partialQueryFailures.Get()
+	status["unavailable_nodes_total"] = unavailableNodes.Get()
+	status["partial_results_total"] = partialResults.Get()
+
+	return status
 }
 
 // GetFieldNames executes qctx and returns field names seen in results.
@@ -444,11 +567,10 @@ func (s *Storage) GetStreamIDs(qctx *logstorage.QueryContext, limit uint64) ([]l
 func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64, resetHitsOnLimitExceeded bool,
 	callback func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error)) ([]logstorage.ValueWithHits, error) {
 
-	ctxWithCancel, cancel := context.WithCancel(qctx.Context)
-	defer cancel()
-
 	results := make([][]logstorage.ValueWithHits, len(s.sns))
 	errs := make([]error, len(s.sns))
+	var successfulNodes int
+	var mu sync.Mutex
 
 	var wg sync.WaitGroup
 	for i := range s.sns {
@@ -457,27 +579,36 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 			defer wg.Done()
 
 			sn := s.sns[nodeIdx]
-			vhs, err := callback(ctxWithCancel, sn)
+			vhs, err := callback(qctx.Context, sn)
+
+			mu.Lock()
 			results[nodeIdx] = vhs
 			errs[nodeIdx] = err
-
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					sn.sendErrors.Inc()
-				}
-
-				// Cancel the remaining parallel requests
-				cancel()
+			if err == nil {
+				successfulNodes++
+			} else if !errors.Is(err, context.Canceled) {
+				sn.sendErrors.Inc()
+				unavailableNodes.Inc()
 			}
+			mu.Unlock()
 		}(i)
 	}
 	wg.Wait()
 
-	if err := getFirstNonCancelError(errs); err != nil {
+	// Check if we have enough successful nodes
+	if err := s.checkQueryResults(errs, successfulNodes); err != nil {
 		return nil, err
 	}
 
-	vhs := logstorage.MergeValuesWithHits(results, limit, resetHitsOnLimitExceeded)
+	// Merge results from successful nodes only
+	successfulResults := make([][]logstorage.ValueWithHits, 0, successfulNodes)
+	for i, result := range results {
+		if errs[i] == nil && result != nil {
+			successfulResults = append(successfulResults, result)
+		}
+	}
+
+	vhs := logstorage.MergeValuesWithHits(successfulResults, limit, resetHitsOnLimitExceeded)
 
 	return vhs, nil
 }
