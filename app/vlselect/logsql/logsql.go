@@ -79,7 +79,8 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
 		}
 
-		// Fetch columns by name to avoid relying on column reordering, which may change after sort/partition pipes
+		// Fetch columns by name to avoid relying on column ordering at VictoriaLogs cluster.
+		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/648
 		cFieldName := db.GetColumnByName("field_name")
 		cFieldValue := db.GetColumnByName("field_value")
 		cHits := db.GetColumnByName("hits")
