@@ -355,6 +355,38 @@ func TestQuery_AddTimeFilter_StepPropagation(t *testing.T) {
 	})
 }
 
+func TestParseQuery_OptimizeSortOffsetLimitPipes(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`* | sort by (x) | limit 30`, `* | sort by (x) limit 30`)
+	f(`* | sort by (x) | offset 10`, `* | sort by (x) offset 10`)
+	f(`* | sort by (x) | offset 10 | limit 30`, `* | sort by (x) offset 10 limit 30`)
+	f(`* | sort by (x) | offset 0`, `* | sort by (x)`)
+	f(`* | sort by (x) | offset 0 | fields a, b`, `* | sort by (x) | fields a, b`)
+	f(`* | sort by (x) | limit 0`, `* | limit 0`)
+	f(`* | sort by (x) | limit 0 | keep a, b`, `* | limit 0 | fields a, b`)
+
+	f(`* | sort by (x) | limit 30 | limit 20`, `* | sort by (x) limit 20`)
+	f(`* | sort by (x) offset 5 | offset 10 | limit 30`, `* | sort by (x) offset 15 limit 30`)
+	f(`* | sort by (x) limit 12 | offset 10 | limit 30`, `* | sort by (x) offset 10 limit 2`)
+	f(`* | sort by (x) offset 3 limit 12 | offset 10 | limit 30 | fields x`, `* | sort by (x) offset 13 limit 2 | fields x`)
+	f(`* | sort by (x) offset 3 limit 10 | offset 10 | limit 30 | fields x`, `* | limit 0 | limit 30 | fields x`)
+	f(`* | sort by (x) | limit 30 | limit 20 | offset 4`, `* | sort by (x) offset 4 limit 16`)
+	f(`* | sort by (x) | limit 30 | limit 20 | offset 4 | offset 5`, `* | sort by (x) offset 9 limit 11`)
+	f(`* | sort by (x) | limit 30 | limit 20 | offset 4 | offset 5 | fields x`, `* | sort by (x) offset 9 limit 11 | fields x`)
+}
+
 func TestParseQuery_OptimizeStarFilters(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()

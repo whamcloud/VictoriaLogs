@@ -783,17 +783,14 @@ func (q *Query) AddPipeSortByTimeDesc() {
 // See https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe
 // and https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
 func (q *Query) AddPipeOffsetLimit(offset, limit uint64) {
-	if offset > 0 {
-		offsetStr := fmt.Sprintf("offset %d", offset)
-		q.mustAppendPipe(offsetStr)
-	}
+	offsetStr := fmt.Sprintf("offset %d", offset)
+	q.mustAppendPipe(offsetStr)
 
 	limitStr := fmt.Sprintf("limit %d", limit)
 	q.mustAppendPipe(limitStr)
 
 	// optimize the query, so the `offset` and `limit` pipes could be joined with the preceding `sort` pipe.
-	q.pipes = optimizeSortOffsetPipes(q.pipes)
-	q.pipes = optimizeSortLimitPipes(q.pipes)
+	q.pipes = optimizeSortOffsetLimitPipes(q.pipes)
 }
 
 func (q *Query) mustAppendPipe(s string) {
@@ -810,8 +807,7 @@ func (q *Query) optimize() {
 }
 
 func (q *Query) optimizeNoSubqueries() {
-	q.pipes = optimizeSortOffsetPipes(q.pipes)
-	q.pipes = optimizeSortLimitPipes(q.pipes)
+	q.pipes = optimizeSortOffsetLimitPipes(q.pipes)
 	q.pipes = optimizeUniqLimitPipes(q.pipes)
 	q.pipes = optimizeFilterPipes(q.pipes)
 
@@ -1327,6 +1323,17 @@ func removeStarFilters(f filter) filter {
 	return f
 }
 
+func optimizeSortOffsetLimitPipes(pipes []pipe) []pipe {
+	for {
+		pipesLen := len(pipes)
+		pipes = optimizeSortOffsetPipes(pipes)
+		pipes = optimizeSortLimitPipes(pipes)
+		if len(pipes) == pipesLen {
+			return pipes
+		}
+	}
+}
+
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {
 	// Merge 'sort ... | offset ...' into 'sort ... offset ...'
 	i := 1
@@ -1341,8 +1348,15 @@ func optimizeSortOffsetPipes(pipes []pipe) []pipe {
 			i++
 			continue
 		}
-		if ps.offset == 0 && ps.limit == 0 {
-			ps.offset = po.offset
+		if ps.limit > 0 && po.offset >= ps.limit {
+			pipes[i-1] = &pipeLimit{}
+			pipes = append(pipes[:i], pipes[i+1:]...)
+			continue
+		}
+
+		ps.offset += po.offset
+		if ps.limit > 0 {
+			ps.limit -= po.offset
 		}
 		pipes = append(pipes[:i], pipes[i+1:]...)
 	}
@@ -1361,6 +1375,10 @@ func optimizeSortLimitPipes(pipes []pipe) []pipe {
 		ps, ok := pipes[i-1].(*pipeSort)
 		if !ok {
 			i++
+			continue
+		}
+		if pl.limit == 0 {
+			pipes = append(pipes[:i-1], pipes[i:]...)
 			continue
 		}
 		if ps.limit == 0 || pl.limit < ps.limit {
