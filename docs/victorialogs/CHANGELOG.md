@@ -22,7 +22,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 Released at 2025-09-10
 
-* FEATURE: [`extract` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe): the `<...>` placeholder now matchs quoted strings in single quotes additionally to strings in double quotes and backticks. For example, the `<login>` placeholder at the `... | extact "login=<login>,"` now matches `foo,bar` for the log message with the text `login='foo,bar'`.
+* FEATURE: [`extract` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe): the `<...>` placeholder now matches quoted strings in single quotes additionally to strings in double quotes and backticks. For example, the `<login>` placeholder at the `... | extact "login=<login>,"` now matches `foo,bar` for the log message with the text `login='foo,bar'`.
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [pattern match filter](https://docs.victoriametrics.com/victorialogs/logsql/#pattern-match-filter) for searching logs by the given patterns such as `<DATETIME>: user_id=<N>, ip=<IP4>, trace_id=<UUID>`. These filters are needed for [#518](https://github.com/VictoriaMetrics/VictoriaLogs/issues/518).
 * FEATURE: [Syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): support for receiving Syslog messages from Unix sockets of `SOCK_STREAM` and `SOCK_DGRAM` types via `-syslog.listenAddr.unix=/path/to/socket` and `-syslog.listenAddr.unix=unixgram:/path/to/socket` command-line flags. See [#570](https://github.com/VictoriaMetrics/VictoriaLogs/issues/570).
 
