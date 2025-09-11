@@ -1346,25 +1346,15 @@ func removeStarFilters(f filter) filter {
 func optimizeOffsetLimitPipes(pipes []pipe) []pipe {
 	for {
 		pipesLen := len(pipes)
-		pipes = optimizeSortOffsetPipes(pipes)
-		pipes = optimizeSortLimitPipes(pipes)
+		pipes = optimizeOffsetLimitPipesInternal(pipes)
 		if len(pipes) == pipesLen {
-			break
+			return pipes
 		}
 	}
+}
 
-	// Remove `offset 0` pipes.
-	i := 0
-	for i < len(pipes) {
-		po, ok := pipes[i].(*pipeOffset)
-		if !ok || po.offset != 0 {
-			i++
-			continue
-		}
-		pipes = append(pipes[:i], pipes[i+1:]...)
-	}
-
-	// Transform query '| offset X | limit Y' into '| limit X+Y | offset X'.
+func optimizeOffsetLimitPipesInternal(pipes []pipe) []pipe {
+	// Replace '| offset X | limit Y' with '| limit X+Y | offset X'.
 	// This reduces the number of rows processed by remote storage.
 	// See: https://github.com/VictoriaMetrics/VictoriaLogs/issues/620#issuecomment-3276624504
 	for i := 0; i < len(pipes)-1; i++ {
@@ -1382,6 +1372,63 @@ func optimizeOffsetLimitPipes(pipes []pipe) []pipe {
 		pipes[i+1] = po
 	}
 
+	// Merge 'offset X | offset Y' into 'offset X+Y'.
+	i := 1
+	for i < len(pipes) {
+		po1, ok1 := pipes[i-1].(*pipeOffset)
+		po2, ok2 := pipes[i].(*pipeOffset)
+		if !ok1 || !ok2 {
+			i++
+			continue
+		}
+
+		po1.offset += po2.offset
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+
+	// Merge 'limit N | limit M' into 'limit min(N, M)'.
+	i = 1
+	for i < len(pipes) {
+		pl1, ok1 := pipes[i-1].(*pipeLimit)
+		pl2, ok2 := pipes[i].(*pipeLimit)
+		if !ok1 || !ok2 {
+			i++
+			continue
+		}
+
+		pl1.limit = min(pl1.limit, pl2.limit)
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+
+	// Replace '| limit X | offset Y' with 'limit 0' if Y >= X.
+	i = 1
+	for i < len(pipes) {
+		pl, ok1 := pipes[i-1].(*pipeLimit)
+		po, ok2 := pipes[i].(*pipeOffset)
+		if !ok1 || !ok2 || po.offset < pl.limit {
+			i++
+			continue
+		}
+
+		pl.limit = 0
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+
+	// Remove `offset 0`.
+	i = 0
+	for i < len(pipes) {
+		po, ok := pipes[i].(*pipeOffset)
+		if !ok || po.offset != 0 {
+			i++
+			continue
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+
+	// Merge '| sort ... | offset ... | limit ...' into '| sort ... offset ... limit ...'.
+	pipes = optimizeSortOffsetPipes(pipes)
+	pipes = optimizeSortLimitPipes(pipes)
+
 	return pipes
 }
 
@@ -1389,16 +1436,13 @@ func optimizeSortOffsetPipes(pipes []pipe) []pipe {
 	// Merge 'sort ... | offset ...' into 'sort ... offset ...'
 	i := 1
 	for i < len(pipes) {
-		po, ok := pipes[i].(*pipeOffset)
-		if !ok {
+		ps, ok1 := pipes[i-1].(*pipeSort)
+		po, ok2 := pipes[i].(*pipeOffset)
+		if !ok1 || !ok2 {
 			i++
 			continue
 		}
-		ps, ok := pipes[i-1].(*pipeSort)
-		if !ok {
-			i++
-			continue
-		}
+
 		if ps.limit > 0 && po.offset >= ps.limit {
 			pipes[i-1] = &pipeLimit{}
 			pipes = append(pipes[:i], pipes[i+1:]...)
@@ -1418,16 +1462,13 @@ func optimizeSortLimitPipes(pipes []pipe) []pipe {
 	// Merge 'sort ... | limit ...' into 'sort ... limit ...'
 	i := 1
 	for i < len(pipes) {
-		pl, ok := pipes[i].(*pipeLimit)
-		if !ok {
+		ps, ok1 := pipes[i-1].(*pipeSort)
+		pl, ok2 := pipes[i].(*pipeLimit)
+		if !ok1 || !ok2 {
 			i++
 			continue
 		}
-		ps, ok := pipes[i-1].(*pipeSort)
-		if !ok {
-			i++
-			continue
-		}
+
 		if pl.limit == 0 {
 			pipes = append(pipes[:i-1], pipes[i:]...)
 			continue
