@@ -20,7 +20,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * BUGFIX: properly detele unneeded directories at [Ossfs2 filesystem](https://www.alibabacloud.com/help/en/oss/developer-reference/ossfs-2-0/). See [#649](https://github.com/VictoriaMetrics/VictoriaLogs/issues/649). Thanks to @xiaozongyang for [the initial pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9709).
 
-## [v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.1).
+## [v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.1)
 
 Released at 2025-09-11
 
@@ -31,7 +31,7 @@ Released at 2025-09-11
 * BUGFIX: [`/select/logsql/hits` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats): take into account results from the [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe) while calculating log hits.
 * BUGFIX: [Syslog data ingesting](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): keep nanosecond precision when parsing RFC3339 timestamp. See [#303](https://github.com/VictoriaMetrics/VictoriaLogs/issues/303).
 
-## [v1.33.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.0).
+## [v1.33.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.0)
 
 Released at 2025-09-10
 
