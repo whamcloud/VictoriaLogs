@@ -1377,11 +1377,8 @@ func optimizeOffsetLimitPipes(pipes []pipe) []pipe {
 			continue
 		}
 
-		plNew := &pipeLimit{
-			limit: po.offset + pl.limit,
-		}
-
-		pipes[i] = plNew
+		pl.limit += po.offset
+		pipes[i] = pl
 		pipes[i+1] = po
 	}
 

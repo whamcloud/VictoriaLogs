@@ -390,6 +390,10 @@ func TestParseQuery_OptimizeOffsetLimitPipes(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/620#issuecomment-3276624504
 	f(`* | offset 0`, `*`)
 	f(`* | offset 0 | limit 10`, `* | limit 10`)
+
+	// 'ofset N | limit M' without preceding 'sort' pipe
+	f(`* | offset 10 | limit 30`, `* | limit 40 | offset 10`)
+	f(`* | offset 10 | limit 30 | fields x`, `* | limit 40 | offset 10 | fields x`)
 }
 
 func TestParseQuery_OptimizeStarFilters(t *testing.T) {
