@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [`/select/logsql/query` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): properly optimize the query execution when the `limit` query arg is set, while the `offset` query arg isn't set. It wasn't addressed properly in [v1.33.0](#v1330). See [#620](https://github.com/VictoriaMetrics/VictoriaLogs/issues/620).
+
 ## [v1.33.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.0)
 
 Released at 2025-09-10

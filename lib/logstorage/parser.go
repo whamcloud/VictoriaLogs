@@ -790,7 +790,7 @@ func (q *Query) AddPipeOffsetLimit(offset, limit uint64) {
 	q.mustAppendPipe(limitStr)
 
 	// optimize the query, so the `offset` and `limit` pipes could be joined with the preceding `sort` pipe.
-	q.pipes = optimizeSortOffsetLimitPipes(q.pipes)
+	q.pipes = optimizeOffsetLimitPipes(q.pipes)
 }
 
 func (q *Query) mustAppendPipe(s string) {
@@ -807,7 +807,7 @@ func (q *Query) optimize() {
 }
 
 func (q *Query) optimizeNoSubqueries() {
-	q.pipes = optimizeSortOffsetLimitPipes(q.pipes)
+	q.pipes = optimizeOffsetLimitPipes(q.pipes)
 	q.pipes = optimizeUniqLimitPipes(q.pipes)
 	q.pipes = optimizeFilterPipes(q.pipes)
 
@@ -1323,15 +1323,28 @@ func removeStarFilters(f filter) filter {
 	return f
 }
 
-func optimizeSortOffsetLimitPipes(pipes []pipe) []pipe {
+func optimizeOffsetLimitPipes(pipes []pipe) []pipe {
 	for {
 		pipesLen := len(pipes)
 		pipes = optimizeSortOffsetPipes(pipes)
 		pipes = optimizeSortLimitPipes(pipes)
 		if len(pipes) == pipesLen {
-			return pipes
+			break
 		}
 	}
+
+	// Remove `offset 0` pipes.
+	i := 0
+	for i < len(pipes) {
+		po, ok := pipes[i].(*pipeOffset)
+		if !ok || po.offset != 0 {
+			i++
+			continue
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+
+	return pipes
 }
 
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {

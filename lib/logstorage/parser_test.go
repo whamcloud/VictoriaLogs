@@ -355,7 +355,7 @@ func TestQuery_AddTimeFilter_StepPropagation(t *testing.T) {
 	})
 }
 
-func TestParseQuery_OptimizeSortOffsetLimitPipes(t *testing.T) {
+func TestParseQuery_OptimizeOffsetLimitPipes(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 
@@ -385,6 +385,11 @@ func TestParseQuery_OptimizeSortOffsetLimitPipes(t *testing.T) {
 	f(`* | sort by (x) | limit 30 | limit 20 | offset 4`, `* | sort by (x) offset 4 limit 16`)
 	f(`* | sort by (x) | limit 30 | limit 20 | offset 4 | offset 5`, `* | sort by (x) offset 9 limit 11`)
 	f(`* | sort by (x) | limit 30 | limit 20 | offset 4 | offset 5 | fields x`, `* | sort by (x) offset 9 limit 11 | fields x`)
+
+	// Verify the case without 'sort' pipe and with 'offset 0' pipes.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/620#issuecomment-3276624504
+	f(`* | offset 0`, `*`)
+	f(`* | offset 0 | limit 10`, `* | limit 10`)
 }
 
 func TestParseQuery_OptimizeStarFilters(t *testing.T) {

@@ -84,4 +84,9 @@ func TestSplitQueryToRemoteAndLocal(t *testing.T) {
 	f(`foo | unpack_syslog`, `foo | unpack_syslog`, ``)
 	f(`foo | unpack_words`, `foo | unpack_words`, ``)
 	f(`foo | unroll by (x)`, `foo | unroll by (x)`, ``)
+
+	// Special cases with 'offset 0'
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/620#issuecomment-3276624504
+	f(`foo | offset 0`, `foo`, ``)
+	f(`foo | offset 0 | limit 10`, `foo | limit 10`, `limit 10`)
 }
