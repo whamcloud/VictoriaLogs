@@ -547,7 +547,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 // It preserves union() pipes if they do not modify _time.
 func (q *Query) dropPipesUnsafeForHits() {
 	for i, p := range q.pipes {
-		if isPipeUnsafeForHits(p) {
+		if !isPipeSafeForHits(p) {
 			// Drop the rest of the pipes, including the current pipe,
 			// since it modified or deletes the _time field.
 			q.pipes = q.pipes[:i]
@@ -556,19 +556,23 @@ func (q *Query) dropPipesUnsafeForHits() {
 	}
 }
 
-func isPipeUnsafeForHits(p pipe) bool {
+func isPipeSafeForHits(p pipe) bool {
 	if p.canReturnLastNResults() {
-		return false
-	}
-
-	// Allow union pipes, but drop pipes unsafe for hits inside it.
-	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/641
-	pu, ok := p.(*pipeUnion)
-	if !ok {
 		return true
 	}
-	pu.q.dropPipesUnsafeForHits()
-	return false
+
+	switch t := p.(type) {
+	case *pipeUnion:
+		// Allow union pipes, but drop pipes unsafe for hits inside them.
+		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/641
+		t.q.dropPipesUnsafeForHits()
+		return true
+	case *pipeJoin:
+		// Allow join pipes, since they do not drop _time field.
+		return true
+	default:
+		return false
+	}
 }
 
 // Clone returns a copy of q at the given timestamp.
