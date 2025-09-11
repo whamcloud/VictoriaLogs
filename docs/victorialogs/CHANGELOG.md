@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: properly detele unneeded directories at [Ossfs2 filesystem](https://www.alibabacloud.com/help/en/oss/developer-reference/ossfs-2-0/). See [#649](https://github.com/VictoriaMetrics/VictoriaLogs/issues/649). Thanks to @xiaozongyang for [the initial pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9709).
+
 ## [v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.1).
 
 Released at 2025-09-11
