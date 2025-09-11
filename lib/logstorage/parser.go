@@ -543,8 +543,6 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 
 // dropPipesUnsafeForHits drops trailing pipes from q, which are unsafe
 // for calculating hits grouped by _time.
-//
-// It preserves union() pipes if they do not modify _time.
 func (q *Query) dropPipesUnsafeForHits() {
 	for i, p := range q.pipes {
 		if !isPipeSafeForHits(p) {
