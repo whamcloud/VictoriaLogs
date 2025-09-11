@@ -511,7 +511,7 @@ func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int, keepCon
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	// Drop pipes from q, which modify or delete _time field, since they make impossible to calculate stats grouped by _time.
-	q.dropTimeModificationPipes()
+	q.dropPipesUnsafeForHits()
 
 	{
 		// add 'stats by (_time:step offset off, fields) count() hits'
@@ -541,16 +541,34 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	}
 }
 
-// dropTimeModificationPipes drops pipes from q, which modify
-func (q *Query) dropTimeModificationPipes() {
+// dropPipesUnsafeForHits drops trailing pipes from q, which are unsafe
+// for calculating hits grouped by _time.
+//
+// It preserves union() pipes if they do not modify _time.
+func (q *Query) dropPipesUnsafeForHits() {
 	for i, p := range q.pipes {
-		if !p.canReturnLastNResults() {
+		if isPipeUnsafeForHits(p) {
 			// Drop the rest of the pipes, including the current pipe,
 			// since it modified or deletes the _time field.
 			q.pipes = q.pipes[:i]
 			return
 		}
 	}
+}
+
+func isPipeUnsafeForHits(p pipe) bool {
+	if p.canReturnLastNResults() {
+		return false
+	}
+
+	// Allow union pipes, but drop pipes unsafe for hits inside it.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/641
+	pu, ok := p.(*pipeUnion)
+	if !ok {
+		return true
+	}
+	pu.q.dropPipesUnsafeForHits()
+	return false
 }
 
 // Clone returns a copy of q at the given timestamp.
