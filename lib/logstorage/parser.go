@@ -1673,7 +1673,7 @@ func parseQuery(lex *lexer) (*Query, error) {
 	lex.pushQueryOptions(&q.opts)
 	defer lex.popQueryOptions()
 
-	f, err := parseFilter(lex)
+	f, err := parseFilter(lex, true)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
@@ -1814,16 +1814,18 @@ func parseKeyValuePair(lex *lexer) (string, string, error) {
 	return k, v, nil
 }
 
-func parseFilter(lex *lexer) (filter, error) {
+func parseFilter(lex *lexer, allowPipeKeywords bool) (filter, error) {
 	if lex.isKeyword("|", ")", "") {
 		return nil, fmt.Errorf("missing query")
 	}
 
-	// Verify the first token in the filter doesn't match pipe names.
-	firstToken := strings.ToLower(lex.rawToken)
-	if firstToken == "by" || isPipeName(firstToken) || isStatsFuncName(firstToken) {
-		return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
-			"please put the first word of the filter into quotes", firstToken)
+	if !allowPipeKeywords {
+		// Verify the first token in the filter doesn't match pipe names.
+		firstToken := strings.ToLower(lex.rawToken)
+		if firstToken == "by" || isPipeName(firstToken) || isStatsFuncName(firstToken) {
+			return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+				"please put the first word of the filter into quotes", firstToken)
+		}
 	}
 
 	fo, err := parseFilterOr(lex, "")

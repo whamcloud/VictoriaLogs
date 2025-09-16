@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): allow using unquoted [pipe names](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) inside [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters). For example, `fields.foo:bar` is allowed now, while previously it should be written as `"fields.foo":bar`. See [#669](https://github.com/VictoriaMetrics/VictoriaLogs/issues/669).
 * BUGFIX: properly detele unneeded directories at [Ossfs2 filesystem](https://www.alibabacloud.com/help/en/oss/developer-reference/ossfs-2-0/). See [#649](https://github.com/VictoriaMetrics/VictoriaLogs/issues/649). Thanks to @xiaozongyang for [the initial pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9709).
 
 ## [v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.33.1)

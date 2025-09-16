@@ -2122,6 +2122,17 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`-~a`, `!~a`)
 	f(`foo-bar.baz/x+z$`, `"foo-bar.baz/x+z$"`)
 	f(`foo:bar:baz:x-z`, `foo:"bar:baz:x-z"`)
+
+	// pipe names without quotes
+	f(`filter foo:bar`, `"filter" foo:bar`)
+	f(`stats count`, `"stats" "count"`)
+	f(`count`, `"count"`)
+
+	f(`foo | filter stats`, `foo "stats"`)
+	f(`foo | limit 1 | filter stats`, `foo | limit 1 | filter "stats"`)
+	f(`foo | filter fields`, `foo "fields"`)
+	f(`foo | filter by`, `foo "by"`)
+	f(`foo | filter count`, `foo "count"`)
 }
 
 func TestParseQuery_Failure(t *testing.T) {
@@ -2201,11 +2212,6 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`*foo *`)
 	f(`foo *bar`)
 	f(`*foo;bar*`)
-
-	// pipe names without quotes
-	f(`filter foo:bar`)
-	f(`stats count()`)
-	f(`count()`)
 
 	// invalid parens
 	f("(")
@@ -2741,11 +2747,9 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | filter (`)
 	f(`foo | filter )`)
 
-	f(`foo | filter stats`)
-	f(`foo | filter fields`)
-	f(`foo | filter by`)
 	f(`foo | count`)
-	f(`foo | filter count`)
+	f(`foo | by`)
+	f(`foo | stats`)
 	f(`foo | (`)
 	f(`foo | )`)
 
