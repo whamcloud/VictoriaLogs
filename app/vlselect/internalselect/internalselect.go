@@ -2,6 +2,7 @@ package internalselect
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,6 +22,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
+var maxConcurrentRequests = flag.Int("internalselect.maxConcurrentRequests", 100, "The limit on the number of concurrent requests to /internal/select/* endpoints; "+
+	"other requests are put into the wait queue; see https://docs.victoriametrics.com/victorialogs/cluster/")
+
 // RequestHandler processes requests to /internal/select/*
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
@@ -39,7 +43,17 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 }
 
-var concurrencyLimitCh = make(chan struct{}, 100)
+// Init initializes internalselect package.
+func Init() {
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+}
+
+// Stop stops vlselect
+func Stop() {
+	concurrencyLimitCh = nil
+}
+
+var concurrencyLimitCh chan struct{}
 
 var concurrentRequestsWaitDuration = metrics.NewSummary(`vl_concurrent_internalselect_requests_wait_duration`)
 

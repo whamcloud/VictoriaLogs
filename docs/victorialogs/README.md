@@ -593,6 +593,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
         Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -internalselect.disable
         Whether to disable /internal/select/* HTTP endpoints
+  -internalselect.maxConcurrentRequests int
+        The limit on the number of concurrent requests to /internal/select/* endpoints; other requests are put into the wait queue; see https://docs.victoriametrics.com/victorialogs/cluster/ (default 100)
   -journald.ignoreFields array
         Comma-separated list of fields to ignore for logs ingested over journald protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#dropping-fields
         Supports an array of values separated by comma or specified via multiple flags.

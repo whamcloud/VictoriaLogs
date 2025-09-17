@@ -57,10 +57,15 @@ func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMUIConfig()
 	initVMAlertProxy()
+
+	internalselect.Init()
 }
 
 // Stop stops vlselect
 func Stop() {
+	internalselect.Stop()
+
+	concurrencyLimitCh = nil
 }
 
 var concurrencyLimitCh chan struct{}
