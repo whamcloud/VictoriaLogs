@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -113,18 +114,39 @@ func newStorageNode(s *Storage, addr string, ac *promauth.Config, isTLS bool) *s
 	return sn
 }
 
-func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func(db *logstorage.DataBlock)) error {
-	args := sn.getCommonArgs(QueryProtocolVersion, qctx)
+type storageNodeQueryState struct {
+	queryStatsGlobal *logstorage.QueryStats
 
-	qsLocal := &logstorage.QueryStats{}
-	defer qctx.QueryStats.UpdateAtomic(qsLocal)
+	responseBody io.ReadCloser
+	reqURL       string
+	sn           *storageNode
+}
+
+func (sn *storageNode) startQuery(qctx *logstorage.QueryContext) (*storageNodeQueryState, error) {
+	args := sn.getCommonArgs(QueryProtocolVersion, qctx)
 
 	path := "/internal/select/query"
 	responseBody, reqURL, err := sn.getResponseBodyForPathAndArgs(qctx.Context, path, args)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer responseBody.Close()
+
+	return &storageNodeQueryState{
+		queryStatsGlobal: qctx.QueryStats,
+
+		responseBody: responseBody,
+		reqURL:       reqURL,
+		sn:           sn,
+	}, nil
+}
+
+func (qstate *storageNodeQueryState) mustClose() {
+	qstate.responseBody.Close()
+}
+
+func (qstate *storageNodeQueryState) runQuery(processBlock func(db *logstorage.DataBlock)) error {
+	qsLocal := &logstorage.QueryStats{}
+	defer qstate.queryStatsGlobal.UpdateAtomic(qsLocal)
 
 	// read the response
 	var dataLenBuf [8]byte
@@ -132,25 +154,25 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 	var db logstorage.DataBlock
 	var valuesBuf []string
 	for {
-		if _, err := io.ReadFull(responseBody, dataLenBuf[:]); err != nil {
+		if _, err := io.ReadFull(qstate.responseBody, dataLenBuf[:]); err != nil {
 			if errors.Is(err, io.EOF) {
 				// The end of response stream
 				return nil
 			}
-			return fmt.Errorf("cannot read block size from %q: %w", path, err)
+			return fmt.Errorf("cannot read block size from %q: %w", qstate.reqURL, err)
 		}
 		blockLen := encoding.UnmarshalUint64(dataLenBuf[:])
 		if blockLen > math.MaxInt {
-			return fmt.Errorf("too big data block read from %q: %d bytes; mustn't exceed %v bytes", reqURL, blockLen, math.MaxInt)
+			return fmt.Errorf("too big data block read from %q: %d bytes; mustn't exceed %v bytes", qstate.reqURL, blockLen, math.MaxInt)
 		}
 
 		buf = slicesutil.SetLength(buf, int(blockLen))
-		if _, err := io.ReadFull(responseBody, buf); err != nil {
-			return fmt.Errorf("cannot read block with size of %d bytes from %q: %w", blockLen, reqURL, err)
+		if _, err := io.ReadFull(qstate.responseBody, buf); err != nil {
+			return fmt.Errorf("cannot read block with size of %d bytes from %q: %w", blockLen, qstate.reqURL, err)
 		}
 
 		src := buf
-		if !sn.s.disableCompression {
+		if !qstate.sn.s.disableCompression {
 			bufLen := len(buf)
 			var err error
 			buf, err = zstd.Decompress(buf, buf)
@@ -167,7 +189,7 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 			if isQueryStatsBlock {
 				tail, err := unmarshalQueryStats(qsLocal, src)
 				if err != nil {
-					return fmt.Errorf("cannot unmarshal query stats received from %q: %w", reqURL, err)
+					return fmt.Errorf("cannot unmarshal query stats received from %q: %w", qstate.reqURL, err)
 				}
 				src = tail
 				continue
@@ -175,7 +197,7 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 
 			tail, vb, err := db.UnmarshalInplace(src, valuesBuf[:0])
 			if err != nil {
-				return fmt.Errorf("cannot unmarshal data block received from %q: %w", reqURL, err)
+				return fmt.Errorf("cannot unmarshal data block received from %q: %w", qstate.reqURL, err)
 			}
 			valuesBuf = vb
 			src = tail
@@ -287,6 +309,8 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 	// send the request to the storage node
 	resp, err := sn.c.Do(req)
 	if err != nil {
+		// Wrap the error into httpserver.ErrorWithStatusCode in order to return the proper status code to the client.
+		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/576
 		return nil, "", &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot connect to storage node at %q: %w", reqURL, err),
 			StatusCode: http.StatusBadGateway,
@@ -355,28 +379,60 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 
 	qctxLocal := qctx.WithContext(ctxWithCancel)
 
+	qstates := make([]*storageNodeQueryState, len(s.sns))
+	defer func() {
+		for _, qstate := range qstates {
+			if qstate != nil {
+				qstate.mustClose()
+			}
+		}
+	}()
+
 	errs := make([]error, len(s.sns))
 
 	var wg sync.WaitGroup
+
+	// Start queries across all the storage nodes in parallel
 	for i := range s.sns {
 		wg.Add(1)
 		go func(nodeIdx int) {
 			defer wg.Done()
 
 			sn := s.sns[nodeIdx]
-			err := sn.runQuery(qctxLocal, func(db *logstorage.DataBlock) {
+			qstate, err := sn.startQuery(qctxLocal)
+			qstates[nodeIdx] = qstate
+			errs[nodeIdx] = err
+
+			if err != nil {
+				sn.handleError(err, cancel)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if err := getFirstNonCancelError(errs); err != nil {
+		return err
+	}
+	clear(errs)
+
+	// Fetch query results across all the storage nodes in parallel.
+	for i := range qstates {
+		wg.Add(1)
+		go func(nodeIdx int) {
+			defer wg.Done()
+
+			qstate := qstates[nodeIdx]
+			if qstate == nil {
+				return
+			}
+			err := qstate.runQuery(func(db *logstorage.DataBlock) {
 				writeBlock(uint(nodeIdx), db)
 			})
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					sn.sendErrors.Inc()
-				}
-
-				// Cancel the remaining parallel queries
-				cancel()
-			}
-
 			errs[nodeIdx] = err
+
+			if err != nil {
+				qstate.sn.handleError(err, cancel)
+			}
 		}(i)
 	}
 	wg.Wait()
@@ -461,12 +517,7 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 			errs[nodeIdx] = err
 
 			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					sn.sendErrors.Inc()
-				}
-
-				// Cancel the remaining parallel requests
-				cancel()
+				sn.handleError(err, cancel)
 			}
 		}(i)
 	}
@@ -481,7 +532,21 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 	return vhs, nil
 }
 
+func (sn *storageNode) handleError(err error, cancel func()) {
+	if !errors.Is(err, context.Canceled) {
+		sn.sendErrors.Inc()
+	}
+
+	// Cancel the remaining parallel queries, since the error must be returned to the client ASAP
+	// without waiting for the remaining parallel queries to other backends.
+	cancel()
+}
+
 func getFirstNonCancelError(errs []error) error {
+	if len(errs) == 0 {
+		logger.Panicf("BUG: len(errs) must be bigger than 0")
+	}
+
 	for _, err := range errs {
 		if err != nil && !errors.Is(err, context.Canceled) {
 			return err
