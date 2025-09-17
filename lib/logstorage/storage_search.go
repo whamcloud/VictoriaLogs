@@ -206,7 +206,8 @@ func (s *Storage) runQuery(qctx *QueryContext, writeBlock writeBlockResultFunc) 
 type searchFunc func(stopCh <-chan struct{}, writeBlock writeBlockResultFunc) error
 
 func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
-	ctx := qctx.Context
+	ctx, topCancel := context.WithCancel(qctx.Context)
+	defer topCancel()
 
 	stopCh := ctx.Done()
 	if len(pipes) == 0 {
@@ -214,7 +215,7 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 		return search(stopCh, writeBlock)
 	}
 
-	pp := newNoopPipeProcessor(writeBlock)
+	pp := newNoopPipeProcessor(stopCh, writeBlock)
 	cancels := make([]func(), len(pipes))
 	pps := make([]pipeProcessor, len(pipes))
 
@@ -231,6 +232,10 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 	}
 
 	errSearch := search(stopCh, pp.writeBlock)
+	if errSearch != nil {
+		// Cancel the whole query in order to free up resources occupied by pipes.
+		topCancel()
+	}
 
 	var errFlush error
 	for i, pp := range pps {
@@ -242,6 +247,9 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 		}
 
 		if err := pp.flush(); err != nil && errFlush == nil {
+			// Cancel the whole query in order to free up resources occupied by the remaining pipes.
+			topCancel()
+
 			errFlush = err
 		}
 		cancel := cancels[i]
