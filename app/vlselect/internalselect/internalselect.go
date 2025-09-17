@@ -25,6 +25,25 @@ import (
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
+	select {
+	case concurrencyLimitCh <- struct{}{}:
+		if d := time.Since(startTime); d > 100*time.Millisecond {
+			// Measure the wait duration for requests, which hit the concurrency limit and waited for more than 100 milliseconds to be executed.
+			concurrentRequestsWaitDuration.Update(d.Seconds())
+		}
+		requestHandler(ctx, w, r, startTime)
+		<-concurrencyLimitCh
+	case <-ctx.Done():
+		// Unconditionally measure the wait time until the the request is canceled by the client.
+		concurrentRequestsWaitDuration.UpdateDuration(startTime)
+	}
+}
+
+var concurrencyLimitCh = make(chan struct{}, 100)
+
+var concurrentRequestsWaitDuration = metrics.NewSummary(`vl_concurrent_internalselect_requests_wait_duration`)
+
+func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
 	path := r.URL.Path
 	rh := requestHandlers[path]
 	if rh == nil {
