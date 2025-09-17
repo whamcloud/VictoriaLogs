@@ -122,6 +122,10 @@ func (lex *lexer) nextCompoundTokenExt(stopTokens []string) (string, error) {
 		return s, nil
 	}
 
+	if !lex.isSkippedSpace && lex.isKeywordAny(deniedFirstCompoundTokens) && isWord(lex.prevRawToken) {
+		return "", fmt.Errorf("missing whitespace between %q and %q", lex.prevRawToken, lex.token)
+	}
+
 	if !lex.isAllowedCompoundToken(stopTokens) {
 		return "", fmt.Errorf("compound token cannot start with %q; put it into quotes if needed", lex.token)
 	}
@@ -165,12 +169,26 @@ func (lex *lexer) isAllowedCompoundToken(stopTokens []string) bool {
 	}
 
 	// Regular word token is allowed to be a part of compound token.
-	for _, r := range lex.token {
+	return isWord(lex.token)
+}
+
+func isWord(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
 		if !isTokenRune(r) {
 			return false
 		}
 	}
 	return true
+}
+
+// deniedFirstCompoundTokens contains disallowed starting tokens for compound tokens without the whitespace in front of these tokens.
+var deniedFirstCompoundTokens = []string{
+	"/",
+	".",
+	"$",
 }
 
 // glueCompoundTokens contains tokens allowed inside unquoted compound tokens.
@@ -190,7 +208,7 @@ var mathStopCompoundTokens = []string{
 	"/",
 }
 
-func (lex *lexer) isPrevRawToken(tokens ...string) bool {
+func (lex *lexer) isPrevRawToken(tokens []string) bool {
 	prevTokenLower := strings.ToLower(lex.prevRawToken)
 	for _, token := range tokens {
 		if token == prevTokenLower {
@@ -205,7 +223,7 @@ func (lex *lexer) checkPrevAdjacentToken(tokens ...string) error {
 		return nil
 	}
 
-	if !lex.isPrevRawToken(tokens...) {
+	if !lex.isPrevRawToken(tokens) {
 		return fmt.Errorf("missing whitespace or ':' between %q and %q; probably, the whole string must be put into quotes", lex.prevRawToken, lex.token)
 	}
 
@@ -2390,10 +2408,16 @@ func parseFilterStar(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
+	op := lex.token
 	lex.nextToken()
 
 	if lex.isKeyword("-") {
 		return nil, fmt.Errorf("regexp, which start with %q, must be put in quotes", lex.token)
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters `foo ~ bar` and `foo !~ bar`. They must be written as `foo:~bar` and `foo:!~bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	arg, err := lex.nextCompoundToken()
@@ -2418,6 +2442,10 @@ func parseFilterNotTilda(lex *lexer, fieldName string) (filter, error) {
 func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 	op := lex.token
 	lex.nextToken()
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo = bar`. It must be written as `foo:=bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
+	}
 
 	phrase, err := lex.nextCompoundToken()
 	if err != nil {
@@ -2455,10 +2483,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 
 	includeMinValue := false
 	op := ">"
-	if lex.isKeyword("=") {
+	if !lex.isSkippedSpace && lex.isKeyword("=") {
 		lex.nextToken()
 		includeMinValue = true
 		op = ">="
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo > bar' and 'foo >= bar'. They must be written as 'foo:>bar` and `foo:>=bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	lexState := lex.backupState()
@@ -2490,10 +2523,15 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 
 	includeMaxValue := false
 	op := "<"
-	if lex.isKeyword("=") {
+	if !lex.isSkippedSpace && lex.isKeyword("=") {
 		lex.nextToken()
 		includeMaxValue = true
 		op = "<="
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo < bar' and 'foo <= bar'. They must be written as 'foo:<bar' and 'foo:<=bar'
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	lexState := lex.backupState()
