@@ -4890,7 +4890,7 @@ for allowing partial responses when some of `vlstorage` nodes are unavailable fo
 logs for the last 5 minutes when some of the `vlstorage` nodes are unavailable (so the response may miss some logs, which are stored on the unavailable `vlstorage` nodes):
 
 ```logsql
-options(allow_partial_response) _time:5m
+options(allow_partial_response=true) _time:5m
 ```
 
 ## Troubleshooting
