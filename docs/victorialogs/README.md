@@ -767,6 +767,10 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
         Optional basic auth username to use for the corresponding -storageNode
         Supports an array of values separated by comma or specified via multiple flags.
         Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -storageNode.usernameFile array
+        Optional path to basic auth username to use for the corresponding -storageNode. The file is re-read every second
+        Supports an array of values separated by comma or specified via multiple flags.
+        Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.compressMethod.tcp array
         Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
         Supports an array of values separated by comma or specified via multiple flags.
