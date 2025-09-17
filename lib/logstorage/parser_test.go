@@ -2127,6 +2127,8 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`filter foo:bar`, `"filter" foo:bar`)
 	f(`stats count`, `"stats" "count"`)
 	f(`count`, `"count"`)
+	f(`fields.foo:bar`, `fields.foo:bar`)
+	f(`fields.foo`, `fields.foo`)
 
 	f(`foo | filter stats`, `foo "stats"`)
 	f(`foo | limit 1 | filter stats`, `foo | limit 1 | filter "stats"`)
