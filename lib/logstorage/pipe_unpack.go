@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFieldPrefix string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
+func updateNeededFieldsForUnpackPipe(fromField, outFieldPrefix string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
 	if pf.MatchNothing() {
 		if iff != nil {
 			pf.AddAllowFilters(iff.allowFilters)
