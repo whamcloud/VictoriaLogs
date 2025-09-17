@@ -34,6 +34,9 @@ type QueryContext struct {
 	// Query is the query to execute.
 	Query *Query
 
+	// AllowPartialResponse indicates whether to allow partial response. This flag is used only in cluster setup when vlselect queries vlstorage nodes.
+	AllowPartialResponse bool
+
 	// startTime is creation time for the QueryContext.
 	//
 	// It is used for calculating query druation.
@@ -41,24 +44,24 @@ type QueryContext struct {
 }
 
 // NewQueryContext returns new context for the given query.
-func NewQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query) *QueryContext {
+func NewQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool) *QueryContext {
 	startTime := time.Now()
-	return newQueryContext(ctx, qs, tenantIDs, q, startTime)
+	return newQueryContext(ctx, qs, tenantIDs, q, allowPartialResponse, startTime)
 }
 
 // WithQuery returns new QueryContext with the given q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithQuery(q *Query) *QueryContext {
-	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.startTime)
+	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // WithContext returns new QueryContext with the given ctx, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContext(ctx context.Context) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // WithContextAndQuery returns new QueryContext with the given ctx and q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContextAndQuery(ctx context.Context, q *Query) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // QueryDurationNsecs returns the duration in nanoseconds since the NewQueryContext call.
@@ -66,13 +69,21 @@ func (qctx *QueryContext) QueryDurationNsecs() int64 {
 	return time.Since(qctx.startTime).Nanoseconds()
 }
 
-func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, startTime time.Time) *QueryContext {
+func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool, startTime time.Time) *QueryContext {
+	if q.opts.allowPartialResponse != nil {
+		// query options override other settings for allowPartialResponse.
+		allowPartialResponse = *q.opts.allowPartialResponse
+	}
+
 	return &QueryContext{
 		Context:    ctx,
 		QueryStats: qs,
 		TenantIDs:  tenantIDs,
 		Query:      q,
-		startTime:  startTime,
+
+		AllowPartialResponse: allowPartialResponse,
+
+		startTime: startTime,
 	}
 }
 
@@ -639,10 +650,10 @@ func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, keepInSubquery bo
 	}
 	qNew = initUnionQueries(qNew, runUnionQuery)
 
-	return initStreamContextPipes(qctx.QueryStats, qNew, runQuery)
+	return initStreamContextPipes(qctx, qNew, runQuery)
 }
 
-func initStreamContextPipes(qs *QueryStats, q *Query, runQuery runQueryFunc) (*Query, error) {
+func initStreamContextPipes(qctx *QueryContext, q *Query, runQuery runQueryFunc) (*Query, error) {
 	pipes := q.pipes
 
 	if len(pipes) == 0 {
@@ -660,7 +671,7 @@ func initStreamContextPipes(qs *QueryStats, q *Query, runQuery runQueryFunc) (*Q
 		fieldsFilter := getNeededColumns(pipes)
 
 		pipesNew := append([]pipe{}, pipes...)
-		pipesNew[0] = pc.withRunQuery(qs, runQuery, fieldsFilter)
+		pipesNew[0] = pc.withRunQuery(qctx, runQuery, fieldsFilter)
 		qNew := q.cloneShallow()
 		qNew.pipes = pipesNew
 		return qNew, nil

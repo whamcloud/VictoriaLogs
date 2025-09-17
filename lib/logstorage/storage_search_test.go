@@ -1438,5 +1438,5 @@ func TestDataBlock_MarshalUnmarshal(t *testing.T) {
 
 func newTestQueryContext(tenantIDs []TenantID, q *Query) *QueryContext {
 	qs := &QueryStats{}
-	return NewQueryContext(context.Background(), qs, tenantIDs, q)
+	return NewQueryContext(context.Background(), qs, tenantIDs, q, false)
 }

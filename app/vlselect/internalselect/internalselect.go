@@ -310,14 +310,18 @@ type commonParams struct {
 	TenantIDs []logstorage.TenantID
 	Query     *logstorage.Query
 
+	// Whether to disable compression of the response sent to the vlselect.
 	DisableCompression bool
+
+	// Whether to allow partial response when some of vlstorage nodes are unavailable.
+	AllowPartialResponse bool
 
 	// qs contains execution statistics for the Query.
 	qs logstorage.QueryStats
 }
 
 func (cp *commonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query)
+	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse)
 }
 
 func (cp *commonParams) UpdatePerQueryStatsMetrics() {
@@ -347,10 +351,14 @@ func getCommonParams(r *http.Request, expectedProtocolVersion string) (*commonPa
 		return nil, fmt.Errorf("cannot unmarshal query=%q: %w", qStr, err)
 	}
 
-	s := r.FormValue("disable_compression")
-	disableCompression, err := strconv.ParseBool(s)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse disable_compression=%q: %w", s, err)
+	disableCompression := false
+	if err := getBoolFromRequest(&disableCompression, r, "disable_compression"); err != nil {
+		return nil, err
+	}
+
+	allowPartialResponse := false
+	if err := getBoolFromRequest(&allowPartialResponse, r, "allow_partial_response"); err != nil {
+		return nil, err
 	}
 
 	cp := &commonParams{
@@ -358,6 +366,8 @@ func getCommonParams(r *http.Request, expectedProtocolVersion string) (*commonPa
 		Query:     q,
 
 		DisableCompression: disableCompression,
+
+		AllowPartialResponse: allowPartialResponse,
 	}
 	return cp, nil
 }
@@ -401,4 +411,17 @@ func getInt64FromRequest(r *http.Request, argName string) (int64, error) {
 		return 0, fmt.Errorf("cannot parse %s=%q: %w", argName, s, err)
 	}
 	return n, nil
+}
+
+func getBoolFromRequest(dst *bool, r *http.Request, argName string) error {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil
+	}
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return fmt.Errorf("cannot parse %s=%q as bool: %w", argName, s, err)
+	}
+	*dst = b
+	return nil
 }

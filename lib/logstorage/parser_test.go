@@ -217,6 +217,10 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 	f(`options(ignore_global_time_filter=true) foo or bar:contains_all(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:contains_all(baz | fields bar)`)
 	f(`foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar))`)
 
+	// allow_partial_response option
+	f(`options(allow_partial_response=true) * | count() x`, `options(allow_partial_response=true) _time:[1735138603000000000,1736772334999999999] | stats count(*) as x`)
+	f(`options(allow_partial_response=false) * | count() x`, `options(allow_partial_response=false) _time:[1735138603000000000,1736772334999999999] | stats count(*) as x`)
+
 	// time_offset option
 	f(`options(time_offset=1d3h534ms) *`, `options(time_offset=1d3h534ms) _time:[1735138603000000000,1736772334999999999]`)
 	f(`options(time_offset = -1.5h) _time:2024Z`, `options(time_offset=-1.5h) _time:[1735138603000000000,1736772334999999999] _time:2024Z`)
@@ -2817,6 +2821,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`options(time_offset=)`)
 	f(`options(time_offset=foo)`)
 	f(`options(ignore_global_time_filter=123)`)
+	f(`options(allow_partial_response=123)`)
 
 	// valid options, but missing query filter
 	f(`options(concurrency=12)`)

@@ -258,6 +258,7 @@ func (sn *storageNode) getCommonArgs(version string, qctx *logstorage.QueryConte
 	args.Set("query", qctx.Query.String())
 	args.Set("timestamp", fmt.Sprintf("%d", qctx.Query.GetTimestamp()))
 	args.Set("disable_compression", fmt.Sprintf("%v", sn.s.disableCompression))
+	args.Set("allow_partial_response", fmt.Sprintf("%v", qctx.AllowPartialResponse))
 	return args
 }
 
@@ -311,6 +312,9 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 	if err != nil {
 		// Wrap the error into httpserver.ErrorWithStatusCode in order to return the proper status code to the client.
 		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/576
+		//
+		// This is also used by isUnavailableBackendError() function in order to differentiate unavailable backend errors
+		// from improper configuration errors.
 		return nil, "", &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot connect to storage node at %q: %w", reqURL, err),
 			StatusCode: http.StatusBadGateway,
@@ -404,13 +408,13 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 			errs[nodeIdx] = err
 
 			if err != nil {
-				sn.handleError(err, cancel)
+				sn.handleError(err, cancel, qctx.AllowPartialResponse)
 			}
 		}(i)
 	}
 	wg.Wait()
 
-	if err := getFirstNonCancelError(errs); err != nil {
+	if err := getFirstNonCancelError(errs, qctx.AllowPartialResponse); err != nil {
 		return err
 	}
 	clear(errs)
@@ -431,13 +435,17 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 			errs[nodeIdx] = err
 
 			if err != nil {
-				qstate.sn.handleError(err, cancel)
+				// Disallow errors in queries after they are already started, even if partial responses are allowed.
+				// This should help detecting configuration errors ASAP instead of hiding them from the operator.
+				qstate.sn.handleError(err, cancel, false)
 			}
 		}(i)
 	}
 	wg.Wait()
 
-	return getFirstNonCancelError(errs)
+	// Disallow errors in queries after they are already started, even if partial responses are allowed.
+	// This should help detecting configuration errors ASAP instead of hiding them from the operator.
+	return getFirstNonCancelError(errs, false)
 }
 
 // GetFieldNames executes qctx and returns field names seen in results.
@@ -517,13 +525,13 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 			errs[nodeIdx] = err
 
 			if err != nil {
-				sn.handleError(err, cancel)
+				sn.handleError(err, cancel, qctx.AllowPartialResponse)
 			}
 		}(i)
 	}
 	wg.Wait()
 
-	if err := getFirstNonCancelError(errs); err != nil {
+	if err := getFirstNonCancelError(errs, qctx.AllowPartialResponse); err != nil {
 		return nil, err
 	}
 
@@ -532,27 +540,57 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 	return vhs, nil
 }
 
-func (sn *storageNode) handleError(err error, cancel func()) {
+func (sn *storageNode) handleError(err error, cancel func(), allowPartialResponse bool) {
 	if !errors.Is(err, context.Canceled) {
 		sn.sendErrors.Inc()
 	}
 
-	// Cancel the remaining parallel queries, since the error must be returned to the client ASAP
-	// without waiting for the remaining parallel queries to other backends.
-	cancel()
+	if !allowPartialResponse || !isUnavailableBackendError(err) {
+		// Cancel the remaining parallel queries, since the error must be returned to the client ASAP
+		// without waiting for the remaining parallel queries to other backends.
+		cancel()
+	}
 }
 
-func getFirstNonCancelError(errs []error) error {
+func getFirstNonCancelError(errs []error, allowPartialResponse bool) error {
 	if len(errs) == 0 {
 		logger.Panicf("BUG: len(errs) must be bigger than 0")
 	}
 
+	if !allowPartialResponse {
+		for _, err := range errs {
+			if err != nil && !errors.Is(err, context.Canceled) {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// allowPartialResponse == true. Return the error only if all the backends are unavailable
+	// or if some of the backends are improperly configured.
+	var nonCancelErrors []error
 	for _, err := range errs {
 		if err != nil && !errors.Is(err, context.Canceled) {
-			return err
+			if !isUnavailableBackendError(err) {
+				// Return the first error, which isn't related to the backend unavailability, to the client,
+				// since this error may point to configuration issues, which must be fixed ASAP.
+				// Hiding this error would complicate troubleshooting of improperly configured system.
+				return fmt.Errorf("the vlstorage node is available, but it returns an error, which may point to configuration issues: %w", err)
+			}
+			nonCancelErrors = append(nonCancelErrors, err)
 		}
 	}
-	return nil
+
+	if len(nonCancelErrors) < len(errs) {
+		return nil
+	}
+	return fmt.Errorf("all the vlstorage nodes are unavailable for querying; a sample error: %w", nonCancelErrors[0])
+}
+
+func isUnavailableBackendError(err error) bool {
+	// It is expected that unavailable backend errors are wrapped into httpserver.ErrorWithStatusCode.
+	var es *httpserver.ErrorWithStatusCode
+	return errors.As(err, &es)
 }
 
 func unmarshalValuesWithHits(qctx *logstorage.QueryContext, src []byte) ([]logstorage.ValueWithHits, error) {

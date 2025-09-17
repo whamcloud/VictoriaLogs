@@ -386,6 +386,9 @@ type queryOptions struct {
 	// if ignoreGlobalTimeFilter is set, then Query.AddTimeFilter doesn't add the time filter to the query and to all its subqueries.
 	ignoreGlobalTimeFilter *bool
 
+	// allowPartialResponse allows returning partial responses in VictoriaLogs cluster setup when some of vlstorage nodes are temporarily unavailable.
+	allowPartialResponse *bool
+
 	// timeOffset is the number of nanoseconds to subtracts from all time filters in the query.
 	//
 	// The timeOffset is also added to the selected _time field values before being passed to query pipes.
@@ -405,6 +408,9 @@ func (opts *queryOptions) String() string {
 	}
 	if opts.ignoreGlobalTimeFilter != nil {
 		a = append(a, fmt.Sprintf("ignore_global_time_filter=%v", *opts.ignoreGlobalTimeFilter))
+	}
+	if opts.allowPartialResponse != nil {
+		a = append(a, fmt.Sprintf("allow_partial_response=%v", *opts.allowPartialResponse))
 	}
 	if opts.timeOffsetStr != "" {
 		a = append(a, fmt.Sprintf("time_offset=%s", opts.timeOffsetStr))
@@ -1789,6 +1795,13 @@ func parseQueryOptions(dstOpts *queryOptions, lex *lexer) error {
 				return fmt.Errorf("cannot parse 'ignore_global_time_filter=%q' option as boolean: %w", v, err)
 			}
 			dstOpts.ignoreGlobalTimeFilter = &ignoreGlobalTimeFilter
+			dstOpts.needPrint = true
+		case "allow_partial_response":
+			allowPartialResponse, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("cannot parse 'allow_partial_response=%q' option as boolean: %w", v, err)
+			}
+			dstOpts.allowPartialResponse = &allowPartialResponse
 			dstOpts.needPrint = true
 		case "time_offset":
 			timeOffset, ok := tryParseDuration(v)

@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [querying](https://docs.victoriametrics.com/victorialogs/querying/): add an ability to return partial responses in [VictoriaLogs cluster setup](https://docs.victoriametrics.com/victorialogs/cluster/) when some of `vlstorage` nodes are unavailable. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#partial-responses) for details. See [#72](https://github.com/VictoriaMetrics/VictoriaLogs/issues/72).
 * FEATURE: proxy VMAlert requests at `/select/vmalert` path, when `-vmalert.proxyURL` flag is set. See [#90](https://github.com/VictoriaMetrics/VictoriaLogs/issues/90).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): control tenant selector state on VMUI depending on headers that are passed to VictoriaLogs. With `AccountID` and `ProjectID` headers set VMUI shows tenant information as a static value, with `VL-Disable-Tenant-Controls` header set to `true` tenant information is not shown in VMUI. See [#656](https://github.com/VictoriaMetrics/VictoriaLogs/issues/656).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): introduce vmui's `Alerting` tab. The new `Alerting` tab displays vmalert groups, rules and notifiers. See [#90](https://github.com/VictoriaMetrics/VictoriaLogs/issues/90).

@@ -2,6 +2,7 @@ package logsql
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -31,6 +32,10 @@ import (
 var (
 	maxQueryTimeRange = flagutil.NewExtendedDuration("search.maxQueryTimeRange", "0", "The maximum time range, which can be set in the query sent to querying APIs. "+
 		"Queries with bigger time ranges are rejected. See https://docs.victoriametrics.com/victorialogs/querying/#resource-usage-limits")
+
+	allowPartialResponseFlag = flag.Bool("search.allowPartialResponse", false, "Whether to allow returning partial responses when some of vlstorage nodes "+
+		"from the -storageNode list are unavaialbe for querying. This flag works only for cluster setup of VictoriaLogs. "+
+		"See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses")
 )
 
 // ProcessFacetsRequest handles /select/logsql/facets request.
@@ -1103,6 +1108,10 @@ type commonArgs struct {
 	// tenantIDs is the list of tenantIDs to query.
 	tenantIDs []logstorage.TenantID
 
+	// Whether to allow partial response when some of vlstorage nodes are unavailable for querying.
+	// This option makes sense only for cluster setup when vlselect queries vlstorage nodes.
+	allowPartialResponse bool
+
 	// minTimestamp and maxTimestamp is the time range specified in the original query,
 	// without taking into account extra_filters and (start, end) query args.
 	minTimestamp int64
@@ -1113,7 +1122,7 @@ type commonArgs struct {
 }
 
 func (ca *commonArgs) newQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q)
+	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q, ca.allowPartialResponse)
 }
 
 func (ca *commonArgs) updatePerQueryStatsMetrics() {
@@ -1222,9 +1231,16 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 		}
 	}
 
+	allowPartialResponse := *allowPartialResponseFlag
+	if err := getBoolFromRequest(&allowPartialResponse, r, "allow_partial_response"); err != nil {
+		return nil, err
+	}
+
 	ca := &commonArgs{
 		q:         q,
 		tenantIDs: tenantIDs,
+
+		allowPartialResponse: allowPartialResponse,
 
 		minTimestamp: minTimestamp,
 		maxTimestamp: maxTimestamp,
@@ -1371,6 +1387,19 @@ func getPositiveInt(r *http.Request, argName string) (int, error) {
 		return 0, fmt.Errorf("%q cannot be smaller than 0; got %d", argName, n)
 	}
 	return n, nil
+}
+
+func getBoolFromRequest(dst *bool, r *http.Request, argName string) error {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil
+	}
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return fmt.Errorf("cannot parse %s=%q as bool: %w", argName, s, err)
+	}
+	*dst = b
+	return nil
 }
 
 func writeRequestDuration(h http.Header, startTime time.Time) {
