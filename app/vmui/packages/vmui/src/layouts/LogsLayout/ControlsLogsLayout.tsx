@@ -5,10 +5,9 @@ import { ControlsProps } from "../Header/HeaderControls/HeaderControls";
 import { TimeSelector } from "../../components/Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import TenantsFields from "../../components/Configurators/GlobalSettings/TenantsConfiguration/TenantsFields";
 import { ExecutionControls } from "../../components/Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
-import { useAppState } from "../../state/common/StateContext";
 
 const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile, headerSetup }) => {
-  const { tenantId } = useAppState();
+
   return (
     <div
       className={classNames({
@@ -17,7 +16,7 @@ const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile, headerSetup }) => {
       })}
     >
 
-      {headerSetup?.tenant && !tenantId?.disableTenantInfo && <TenantsFields/>}
+      {headerSetup?.tenant && <TenantsFields/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.executionControls &&  <ExecutionControls/>}
       <GlobalSettings/>

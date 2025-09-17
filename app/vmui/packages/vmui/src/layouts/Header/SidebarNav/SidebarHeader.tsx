@@ -49,7 +49,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         "vm-header-sidebar-menu_open": openMenu
       })}
     >
-      <div className="vm-header-sidebar-scrollable">
+      <div>
         <HeaderNav
           color={color}
           background={background}

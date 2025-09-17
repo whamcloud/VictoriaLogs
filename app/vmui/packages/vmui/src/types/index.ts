@@ -174,10 +174,6 @@ export interface AppConfig {
   license?: {
     type?: "enterprise" | "opensource";
   }
-  vmalert?: {
-    enabled: boolean;
-  };
-  version?: string;
 }
 
 export interface GroupLogsType {

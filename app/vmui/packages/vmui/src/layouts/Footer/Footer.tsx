@@ -2,7 +2,6 @@ import { FC, memo } from "preact/compat";
 import { LogoShortIcon } from "../../components/Main/Icons";
 import "./style.scss";
 import { footerLinksToLogs } from "../../constants/footerLinks";
-import { useAppState } from "../../state/common/StateContext";
 
 interface Props {
   links?: {
@@ -14,12 +13,10 @@ interface Props {
 
 const Footer: FC<Props> = memo(({ links = footerLinksToLogs }) => {
   const copyrightYears = `2019-${new Date().getFullYear()}`;
-  const { appConfig } = useAppState();
-  const version = appConfig?.version;
 
   return <footer className="vm-footer">
     <a
-      className="vm-link vm-footer__link"
+      className="vm-link vm-footer__website"
       target="_blank"
       href="https://victoriametrics.com/"
       rel="me noreferrer"
@@ -40,8 +37,7 @@ const Footer: FC<Props> = memo(({ links = footerLinksToLogs }) => {
       </a>
     ))}
     <div className="vm-footer__copyright">
-      &copy; {copyrightYears} VictoriaMetrics.
-      {version && <span className="vm-footer__version">&nbsp;Version: {version}</span>}
+      &copy; {copyrightYears} VictoriaMetrics
     </div>
   </footer>;
 });
