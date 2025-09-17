@@ -7,9 +7,7 @@
     display: flex;
     justify-content: space-between;
     border-radius: calc($button-radius + 1px);
-    :is(.vm-autorefresh) {
-      min-width: 107px;
-    }
+    min-width: 107px;
 
     &_mobile {
       flex-direction: column;

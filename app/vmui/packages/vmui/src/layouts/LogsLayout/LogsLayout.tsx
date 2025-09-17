@@ -29,7 +29,6 @@ const LogsLayout: FC = () => {
   };
 
   useEffect(setDocumentTitle, [pathname]);
-  useFetchAppConfig();
 
   return <section className="vm-container">
     <Header controlsComponent={ControlsLogsLayout}/>

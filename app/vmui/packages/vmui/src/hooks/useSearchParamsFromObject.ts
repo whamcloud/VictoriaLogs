@@ -7,20 +7,12 @@ const useSearchParamsFromObject = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const setSearchParamsFromKeys = useCallback((objectParams: Record<string, string | number>) => {
-    const hasSearchParams = !!searchParams.size;
+    const hasSearchParams = !!Array.from(searchParams.values()).length;
     let hasChanged = false;
 
-    const newSearchParams = new URLSearchParams(searchParams);
-    searchParams.keys().forEach(key => {
-      if (!(key in objectParams)) {
-        newSearchParams.delete(key);
-        hasChanged = true;
-      }
-    });
-
     Object.entries(objectParams).forEach(([key, value]) => {
-      if (newSearchParams.get(key) !== `${value}`) {
-        newSearchParams.set(key, `${value}`);
+      if (searchParams.get(key) !== `${value}`) {
+        searchParams.set(key, `${value}`);
         hasChanged = true;
       }
     });
@@ -28,9 +20,9 @@ const useSearchParamsFromObject = () => {
     if (!hasChanged) return;
 
     if (hasSearchParams) {
-      setSearchParams(newSearchParams);
+      setSearchParams(searchParams);
     } else {
-      navigate(`?${newSearchParams.toString()}`, { replace: true });
+      navigate(`?${searchParams.toString()}`, { replace: true });
     }
   }, [searchParams, navigate]);
 

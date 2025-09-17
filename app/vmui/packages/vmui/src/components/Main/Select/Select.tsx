@@ -10,7 +10,6 @@ import useEventListener from "../../../hooks/useEventListener";
 import useClickOutside from "../../../hooks/useClickOutside";
 
 interface SelectProps {
-  itemClassName?: string
   value: string | string[]
   list: string[]
   label?: string
@@ -20,7 +19,6 @@ interface SelectProps {
   searchable?: boolean
   autofocus?: boolean
   disabled?: boolean
-  includeAll?: boolean
   onChange: (value: string) => void
 }
 
@@ -28,13 +26,11 @@ const Select: FC<SelectProps> = ({
   value,
   list,
   label,
-  itemClassName,
   placeholder,
   noOptionsText,
   clearable = false,
   searchable = false,
   autofocus,
-  includeAll,
   disabled,
   onChange
 }) => {
@@ -49,7 +45,7 @@ const Select: FC<SelectProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isMultiple = Array.isArray(value);
-  const selectedValues = Array.isArray(value) ? value.slice() : [];
+  const selectedValues = Array.isArray(value) ? value : undefined;
   const hideInput = isMobile && isMultiple && !!selectedValues?.length;
 
   const textFieldValue = useMemo(() => {
@@ -122,9 +118,6 @@ const Select: FC<SelectProps> = ({
   useEventListener("keyup", handleKeyUp);
   useClickOutside(autocompleteAnchorEl, handleCloseList, wrapperRef);
 
-  includeAll && !list.includes("All") && list.push("All");
-  includeAll && !selectedValues?.length && selectedValues.push("All");
-
   return (
     <div
       className={classNames({
@@ -141,12 +134,11 @@ const Select: FC<SelectProps> = ({
         <div className="vm-select-input-content">
           {!!selectedValues?.length && (
             <MultipleSelectedValue
-              itemClassName={itemClassName}
               values={selectedValues}
               onRemoveItem={handleSelected}
             />
           )}
-          {!hideInput && !selectedValues?.length && (
+          {!hideInput && (
             <input
               value={textFieldValue}
               type="text"
@@ -178,10 +170,9 @@ const Select: FC<SelectProps> = ({
         </div>
       </div>
       <Autocomplete
-        itemClassName={itemClassName}
         label={label}
         value={autocompleteValue}
-        options={list.map(l => ({ value: l }))}
+        options={list.map(el => ({ value: el }))}
         anchor={autocompleteAnchorEl}
         selected={selectedValues}
         minLength={1}

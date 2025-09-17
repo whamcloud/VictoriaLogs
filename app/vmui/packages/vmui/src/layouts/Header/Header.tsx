@@ -96,7 +96,6 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
       controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
-      closeModal={() => {}}
     />
   </header>;
 };

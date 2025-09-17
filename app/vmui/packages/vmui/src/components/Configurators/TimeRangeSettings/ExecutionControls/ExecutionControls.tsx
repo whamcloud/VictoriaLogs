@@ -30,13 +30,7 @@ const delayOptions: AutoRefreshOption[] = [
   { seconds: 7200, title: "2h" }
 ];
 
-interface ExecutionControlsProps {
-  tooltip: string;
-  useAutorefresh?: boolean;
-  closeModal: () => void;
-}
-
-export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAutorefresh, closeModal }) => {
+export const ExecutionControls: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const dispatch = useTimeDispatch();
@@ -62,9 +56,6 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
 
   const handleUpdate = () => {
     dispatch({ type: "RUN_QUERY" });
-    if (!useAutorefresh && isMobile) {
-      closeModal();
-    }
   };
 
   useEffect(() => {
@@ -93,109 +84,84 @@ export const ExecutionControls: FC<ExecutionControlsProps> = ({ tooltip, useAuto
           "vm-execution-controls-buttons": true,
           "vm-execution-controls-buttons_mobile": isMobile,
           "vm-header-button": !appModeEnable,
-          "vm-autorefresh": useAutorefresh,
         })}
       >
-        {useAutorefresh ? (
-          isMobile ? (
-            <div
-              className="vm-mobile-option"
-              onClick={toggleOpenOptions}
-            >
-              <span className="vm-mobile-option__icon"><RestartIcon/></span>
-              <div className="vm-mobile-option-text">
-                <span className="vm-mobile-option-text__label">Auto-refresh</span>
-                <span className="vm-mobile-option-text__value">{selectedDelay.title}</span>
-              </div>
-              <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
-            </div>
-          ) : (
-            <>
-              <Tooltip title={tooltip}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleUpdate}
-                  startIcon={<RefreshIcon/>}
-                  ariaLabel={tooltip}
-                />
-              </Tooltip>
-              <Tooltip title="Auto-refresh control">
-                <div ref={optionsButtonRef}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                    endIcon={(
-                      <div
-                        className={classNames({
-                          "vm-execution-controls-buttons__arrow": true,
-                          "vm-execution-controls-buttons__arrow_open": openOptions,
-                        })}
-                      >
-                        <ArrowDownIcon/>
-                      </div>
-                    )}
-                    onClick={toggleOpenOptions}
-                  >
-                    {selectedDelay.title}
-                  </Button>
-                </div>
-              </Tooltip>
-            </>
-          )
-        ) : (
-          isMobile ? (
-            <div
-              className="vm-mobile-option"
-              onClick={handleUpdate}
-            >
-              <span className="vm-mobile-option__icon"><RestartIcon/></span>
-              <div className="vm-mobile-option-text">
-                <span className="vm-mobile-option-text__label">Refresh</span>
-              </div>
-            </div>
-          ) : (
+        {!isMobile && (
+          <Tooltip title="Refresh dashboard">
             <Button
               variant="contained"
               color="primary"
               onClick={handleUpdate}
               startIcon={<RefreshIcon/>}
-              ariaLabel={tooltip}
+              ariaLabel="refresh dashboard"
             />
-          )
+          </Tooltip>
+        )}
+        {isMobile ? (
+          <div
+            className="vm-mobile-option"
+            onClick={toggleOpenOptions}
+          >
+            <span className="vm-mobile-option__icon"><RestartIcon/></span>
+            <div className="vm-mobile-option-text">
+              <span className="vm-mobile-option-text__label">Auto-refresh</span>
+              <span className="vm-mobile-option-text__value">{selectedDelay.title}</span>
+            </div>
+            <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+          </div>
+        ) : (
+          <Tooltip title="Auto-refresh control">
+            <div ref={optionsButtonRef}>
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                endIcon={(
+                  <div
+                    className={classNames({
+                      "vm-execution-controls-buttons__arrow": true,
+                      "vm-execution-controls-buttons__arrow_open": openOptions,
+                    })}
+                  >
+                    <ArrowDownIcon/>
+                  </div>
+                )}
+                onClick={toggleOpenOptions}
+              >
+                {selectedDelay.title}
+              </Button>
+            </div>
+          </Tooltip>
         )}
       </div>
     </div>
-    {useAutorefresh && (
-      <Popper
-        open={openOptions}
-        placement="bottom-right"
-        onClose={handleCloseOptions}
-        buttonRef={optionsButtonRef}
-        title={isMobile ? "Auto-refresh duration" : undefined}
+    <Popper
+      open={openOptions}
+      placement="bottom-right"
+      onClose={handleCloseOptions}
+      buttonRef={optionsButtonRef}
+      title={isMobile ? "Auto-refresh duration" : undefined}
+    >
+      <div
+        className={classNames({
+          "vm-execution-controls-list": true,
+          "vm-execution-controls-list_mobile": isMobile,
+        })}
       >
-        <div
-          className={classNames({
-            "vm-execution-controls-list": true,
-            "vm-execution-controls-list_mobile": isMobile,
-          })}
-        >
-          {delayOptions.map(d => (
-            <div
-              className={classNames({
-                "vm-list-item": true,
-                "vm-list-item_mobile": isMobile,
-                "vm-list-item_active": d.seconds === selectedDelay.seconds
-              })}
-              key={d.seconds}
-              onClick={createHandlerChange(d)}
-            >
-              {d.title}
-            </div>
-          ))}
-        </div>
-      </Popper>
-    )}
+        {delayOptions.map(d => (
+          <div
+            className={classNames({
+              "vm-list-item": true,
+              "vm-list-item_mobile": isMobile,
+              "vm-list-item_active": d.seconds === selectedDelay.seconds
+            })}
+            key={d.seconds}
+            onClick={createHandlerChange(d)}
+          >
+            {d.title}
+          </div>
+        ))}
+      </div>
+    </Popper>
   </>;
 };

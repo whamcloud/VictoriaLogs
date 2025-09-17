@@ -6,8 +6,6 @@ import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
 import LogsLayout from "./layouts/LogsLayout/LogsLayout";
 import StreamContext from "./pages/StreamContext/StreamContext";
 import router from "./router";
-import ExploreRules from "./pages/ExploreAlerts/ExploreRules";
-import ExploreNotifiers from "./pages/ExploreAlerts/ExploreNotifiers";
 import "./constants/markedPlugins";
 
 const App: FC = () => {
@@ -31,14 +29,6 @@ const App: FC = () => {
                 <Route
                   path={router.streamContext}
                   element={<StreamContext/>}
-                />
-                <Route
-                  path={router.rules}
-                  element={<ExploreRules/>}
-                />
-                <Route
-                  path={router.notifiers}
-                  element={<ExploreNotifiers/>}
                 />
               </Route>
             </Routes>

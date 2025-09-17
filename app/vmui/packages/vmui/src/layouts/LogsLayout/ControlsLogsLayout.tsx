@@ -7,9 +7,8 @@ import TenantsFields from "../../components/Configurators/GlobalSettings/Tenants
 import { ExecutionControls } from "../../components/Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
 import { useAppState } from "../../state/common/StateContext";
 
-const ControlsLogsLayout: FC<ControlsProps> = ({ headerSetup, isMobile, closeModal }) => {
+const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile, headerSetup }) => {
   const { tenantId } = useAppState();
-
   return (
     <div
       className={classNames({
@@ -20,11 +19,7 @@ const ControlsLogsLayout: FC<ControlsProps> = ({ headerSetup, isMobile, closeMod
 
       {headerSetup?.tenant && !tenantId?.disableTenantInfo && <TenantsFields/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
-      {headerSetup?.executionControls && <ExecutionControls
-        tooltip={headerSetup?.executionControls?.tooltip}
-        useAutorefresh={headerSetup?.executionControls?.useAutorefresh}
-        closeModal={closeModal}
-      />}
+      {headerSetup?.executionControls &&  <ExecutionControls/>}
       <GlobalSettings/>
     </div>
   );
