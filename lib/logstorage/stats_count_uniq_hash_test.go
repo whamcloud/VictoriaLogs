@@ -513,3 +513,65 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 	}
 	f(sup, 105, 12)
 }
+
+func TestStatsCountUniqHash_ExportImportState_DistinctConcurrency(t *testing.T) {
+	var a chunkedAllocator
+	newStatsCountUniqHashProcessor := func(concurrency uint) *statsCountUniqHashProcessor {
+		sup := a.newStatsCountUniqHashProcessor()
+		sup.a = &a
+		sup.concurrency = concurrency
+		return sup
+	}
+
+	f := func(remoteConcurrency, localConcurrency uint) {
+		t.Helper()
+
+		supRemote := newStatsCountUniqHashProcessor(remoteConcurrency)
+		supLocal := newStatsCountUniqHashProcessor(localConcurrency)
+
+		supRemote.shards = []statsCountUniqHashSet{
+			{
+				timestamps: map[uint64]struct{}{
+					123: {},
+					0:   {},
+				},
+				u64: map[uint64]struct{}{
+					43: {},
+				},
+				negative64: map[uint64]struct{}{
+					8234932: {},
+				},
+				strings: map[uint64]struct{}{
+					8934:   {},
+					432443: {},
+				},
+			},
+			{
+				timestamps: map[uint64]struct{}{
+					10:      {},
+					1123:    {},
+					3234324: {},
+				},
+				u64: map[uint64]struct{}{
+					42: {},
+				},
+			},
+		}
+		remoteEntriesCount := supRemote.entriesCount()
+
+		data := supRemote.exportState(nil, nil)
+		_, err := supLocal.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		localEntriesCount := supLocal.entriesCount()
+		if localEntriesCount != remoteEntriesCount {
+			t.Fatalf("unexpected number of entries; got %d; want %d", localEntriesCount, remoteEntriesCount)
+		}
+	}
+
+	f(2, 3)
+	f(2, 1)
+	f(2, 100)
+}

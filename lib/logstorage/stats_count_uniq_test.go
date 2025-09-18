@@ -542,3 +542,65 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 	}
 	f(sup, 42, 7)
 }
+
+func TestStatsCountUniq_ExportImportState_DistinctConcurrency(t *testing.T) {
+	var a chunkedAllocator
+	newStatsCountUniqProcessor := func(concurrency uint) *statsCountUniqProcessor {
+		sup := a.newStatsCountUniqProcessor()
+		sup.a = &a
+		sup.concurrency = concurrency
+		return sup
+	}
+
+	f := func(remoteConcurrency, localConcurrency uint) {
+		t.Helper()
+
+		supRemote := newStatsCountUniqProcessor(remoteConcurrency)
+		supLocal := newStatsCountUniqProcessor(localConcurrency)
+
+		supRemote.shards = []statsCountUniqSet{
+			{
+				timestamps: map[uint64]struct{}{
+					123: {},
+					0:   {},
+				},
+				u64: map[uint64]struct{}{
+					43: {},
+				},
+				negative64: map[uint64]struct{}{
+					8234932: {},
+				},
+				strings: map[string]struct{}{
+					"foo": {},
+					"bar": {},
+				},
+			},
+			{
+				timestamps: map[uint64]struct{}{
+					10:      {},
+					1123:    {},
+					3234324: {},
+				},
+				u64: map[uint64]struct{}{
+					42: {},
+				},
+			},
+		}
+		remoteEntriesCount := supRemote.entriesCount()
+
+		data := supRemote.exportState(nil, nil)
+		_, err := supLocal.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		localEntriesCount := supLocal.entriesCount()
+		if localEntriesCount != remoteEntriesCount {
+			t.Fatalf("unexpected number of entries; got %d; want %d", localEntriesCount, remoteEntriesCount)
+		}
+	}
+
+	f(2, 3)
+	f(2, 1)
+	f(2, 100)
+}
