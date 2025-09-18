@@ -203,14 +203,14 @@ func (s *Storage) runQuery(qctx *QueryContext, writeBlock writeBlockResultFunc) 
 		timeOffset:   -q.opts.timeOffset,
 	}
 
-	workersCount := q.GetConcurrency()
-
 	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
-		s.search(workersCount, so, qctx.QueryStats, stopCh, writeBlockToPipes)
+		workersCount := q.GetParallelReaders(s.defaultParallelReaders)
+		s.searchParallel(workersCount, so, qctx.QueryStats, stopCh, writeBlockToPipes)
 		return nil
 	}
 
-	return runPipes(qctx, q.pipes, search, writeBlock, workersCount)
+	concurrency := q.GetConcurrency()
+	return runPipes(qctx, q.pipes, search, writeBlock, concurrency)
 }
 
 // searchFunc must perform search and pass its results to writeBlock.
@@ -1142,8 +1142,8 @@ func (db *DataBlock) initFromBlockResult(br *blockResult) {
 
 // search searches for the matching rows according to so.
 //
-// It calls writeBlock for each matching block.
-func (s *Storage) search(workersCount int, so *genericSearchOptions, qs *QueryStats, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+// It uses workersCount parallel workers for the search and calls writeBlock for each matching block.
+func (s *Storage) searchParallel(workersCount int, so *genericSearchOptions, qs *QueryStats, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)

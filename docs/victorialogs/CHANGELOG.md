@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [querying](https://docs.victoriametrics.com/victorialogs/querying/): add an ability to return partial responses in [VictoriaLogs cluster setup](https://docs.victoriametrics.com/victorialogs/cluster/) when some of `vlstorage` nodes are unavailable. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#partial-responses) for details. See [#72](https://github.com/VictoriaMetrics/VictoriaLogs/issues/72).
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to configure the number of parallel readers to use during query execution for reading the queried data from storage. This may help improving query performance for high-latency storage systems such as NFS, Ceph or S3. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option) for details.
 * FEATURE: [vlselect](https://docs.victoriametrics.com/victorialogs/cluster/): add `-storageNode.usernameFile` command-line flag for dynamically reloading basic auth username for the corresponding `-storageNode` from the given file. See [#459](https://github.com/VictoriaMetrics/VictoriaLogs/issues/459).
 
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): disallow incorrectly written filters such as `foo = bar`, `foo != bar`, `foo > bar`, etc. They must be written as `foo:=bar`, `foo:!=bar`, `foo:>bar`. See [#590](https://github.com/VictoriaMetrics/VictoriaLogs/issues/590).

@@ -378,10 +378,15 @@ type queryOptions struct {
 	// needPrint is set to true if the queryOptions must be printed in the queryOptions.String().
 	needPrint bool
 
-	// concurrency is the number of concurrent workers to use for query execution on every.
+	// concurrency is the number of concurrent CPU-bound workers to use for a single query execution.
 	//
 	// By default the number of concurrent workers equals to the number of available CPU cores.
 	concurrency uint
+
+	// parallelReaders is the number of concurrent IO-bound data readers to use for a single query execution.
+	//
+	// By default the number of parallel readers equals to concurrency.
+	parallelReaders uint
 
 	// if ignoreGlobalTimeFilter is set, then Query.AddTimeFilter doesn't add the time filter to the query and to all its subqueries.
 	ignoreGlobalTimeFilter *bool
@@ -435,6 +440,24 @@ func (q *Query) String() string {
 	}
 
 	return s
+}
+
+// GetParallelReaders returns the number of parallel readers to use for executing the given query.
+func (q *Query) GetParallelReaders(defaultParallelReaders int) int {
+	n := int(q.opts.parallelReaders)
+	if n <= 0 {
+		n = int(q.opts.concurrency)
+	}
+	if n <= 0 {
+		n = defaultParallelReaders
+	}
+	if n <= 0 {
+		n = 2 * cgroup.AvailableCPUs()
+	}
+	if n > maxParallelReaders {
+		n = maxParallelReaders
+	}
+	return n
 }
 
 // GetConcurrency returns concurrency for the q.
@@ -1783,11 +1806,14 @@ func parseQueryOptions(dstOpts *queryOptions, lex *lexer) error {
 			if !ok {
 				return fmt.Errorf("cannot parse 'concurrency=%q' option as unsigned integer", v)
 			}
-			if n > 1024 {
-				// There is zero sense in running too many workers.
-				n = 1024
-			}
 			dstOpts.concurrency = uint(n)
+			dstOpts.needPrint = true
+		case "parallel_readers":
+			n, ok := tryParseUint64(v)
+			if !ok {
+				return fmt.Errorf("cannot parse 'parallel_readers=%q' option as unsigned integer", v)
+			}
+			dstOpts.parallelReaders = uint(n)
 			dstOpts.needPrint = true
 		case "ignore_global_time_filter":
 			ignoreGlobalTimeFilter, err := strconv.ParseBool(v)

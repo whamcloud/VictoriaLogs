@@ -51,6 +51,11 @@ type StorageConfig struct {
 	// Older data is automatically deleted.
 	Retention time.Duration
 
+	// DefaultParallelReaders is the default number of parallel readers to use per each query execution.
+	//
+	// Higher value can help improving query performance on storage with high disk read latency such as S3.
+	DefaultParallelReaders int
+
 	// MaxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
 	//
 	// The oldest per-day partitions are automatically dropped if the total disk space usage exceeds this limit.
@@ -96,6 +101,11 @@ type Storage struct {
 	//
 	// older data is automatically deleted
 	retention time.Duration
+
+	// defaultParallelReaders is the default number of parallel IO-bound readers to use for query execution.
+	//
+	// Higher number of readers may help increasing query performance on storage with high read latency such as S3.
+	defaultParallelReaders int
 
 	// maxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
 	//
@@ -444,6 +454,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s := &Storage{
 		path:                   path,
 		retention:              retention,
+		defaultParallelReaders: cfg.DefaultParallelReaders,
 		maxDiskSpaceUsageBytes: cfg.MaxDiskSpaceUsageBytes,
 		maxDiskUsagePercent:    cfg.MaxDiskUsagePercent,
 		flushInterval:          flushInterval,

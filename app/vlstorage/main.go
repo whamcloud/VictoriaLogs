@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -24,6 +25,11 @@ var (
 	retentionPeriod = flagutil.NewRetentionDuration("retentionPeriod", "7d", "Log entries with timestamps older than now-retentionPeriod are automatically deleted; "+
 		"log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); "+
 		"see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes and -retention.maxDiskUsagePercent")
+
+	defaultParallelReaders = flag.Int("defaultParallelReaders", 2*cgroup.AvailableCPUs(), "Default number of parallel data readers to use for executing every query; "+
+		"higher number of readers may help increasing query performance on high-latency storage such as NFS or S3 at the cost of higher RAM usage; "+
+		"see https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option")
+
 	maxDiskSpaceUsageBytes = flagutil.NewBytes("retention.maxDiskSpaceUsageBytes", 0, "The maximum disk space usage at -storageDataPath before older per-day "+
 		"partitions are automatically dropped; see https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage ; see also -retentionPeriod")
 	maxDiskUsagePercent = flag.Int("retention.maxDiskUsagePercent", 0, "The maximum allowed disk usage percentage (1-100) for the filesystem that contains -storageDataPath before older per-day partitions are automatically dropped; mutually exclusive with -retention.maxDiskSpaceUsageBytes; see https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage-percent")
@@ -115,6 +121,7 @@ func initLocalStorage() {
 	}
 	cfg := &logstorage.StorageConfig{
 		Retention:              retentionPeriod.Duration(),
+		DefaultParallelReaders: *defaultParallelReaders,
 		MaxDiskSpaceUsageBytes: maxDiskSpaceUsageBytes.N,
 		MaxDiskUsagePercent:    *maxDiskUsagePercent,
 		FlushInterval:          *inmemoryDataFlushInterval,
