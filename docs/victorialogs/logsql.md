@@ -4839,7 +4839,7 @@ Internally duration values are converted into nanoseconds.
   reducing the number of selected logs by using more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters),
   which return lower number of logs to process by [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes).
 - If the logs are stored at high-latency storage systems such as NFS or S3, then increasing the number of parallel readers can help improving query performance.
-  See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#concurrency-query-option) for details.
+  See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option) for details.
 
 ## Query options
 
