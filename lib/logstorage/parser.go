@@ -781,14 +781,22 @@ func (q *Query) addTimeFilterNoSubqueries(start, end int64) {
 
 	timeOffset := q.opts.timeOffset
 
+	// use nanosecond precision for [start, end] time range in order to avoid
+	// automatic adjustement of timestamps for its' string representation.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/587
+	//
+	// Do not use numeric representation of timestamps, since they are improperly parsed
+	// for negative timestamps (they are parsed as relative to the current time)
+	// and for timestamps with less than 15 decimal digits (they are parsed as microsends,
+	// milliseconds or seconds depending on the number of decimal digit).
+	startStr := marshalTimestampRFC3339NanoPreciseString(nil, start)
+	endStr := marshalTimestampRFC3339NanoPreciseString(nil, end)
+
 	ft := &filterTime{
 		minTimestamp: subNoOverflowInt64(start, timeOffset),
 		maxTimestamp: subNoOverflowInt64(end, timeOffset),
 
-		// use nanosecond representation in the query here in order to avoid
-		// automatic adjustement of the end timestamp for its' string representation.
-		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/587
-		stringRepr: fmt.Sprintf("[%d,%d]", start, end),
+		stringRepr: fmt.Sprintf("[%s,%s]", startStr, endStr),
 	}
 
 	fa, ok := q.f.(*filterAnd)
