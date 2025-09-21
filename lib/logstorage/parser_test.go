@@ -197,68 +197,68 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 	}
 
 	// star filter
-	f(`*`, `_time:[1735138603000000000,1736772334999999999]`)
+	f(`*`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z]`)
 
 	// or, plus non-query in(...)
-	f(`foo or bar:in(baz)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:in(baz))`)
-	f(`foo or bar:contains_any(baz)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_any(baz))`)
-	f(`foo or bar:contains_all(baz)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_all(baz))`)
+	f(`foo or bar:in(baz)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:in(baz))`)
+	f(`foo or bar:contains_any(baz)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_any(baz))`)
+	f(`foo or bar:contains_all(baz)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_all(baz))`)
 
 	// or, plus query in(...)
-	f(`foo or bar:in(baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:in(_time:[1735138603000000000,1736772334999999999] baz | fields bar))`)
-	f(`foo or bar:contains_any(baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_any(_time:[1735138603000000000,1736772334999999999] baz | fields bar))`)
-	f(`foo or bar:contains_all(baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_all(_time:[1735138603000000000,1736772334999999999] baz | fields bar))`)
+	f(`foo or bar:in(baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:in(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] baz | fields bar))`)
+	f(`foo or bar:contains_any(baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_any(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] baz | fields bar))`)
+	f(`foo or bar:contains_all(baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_all(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] baz | fields bar))`)
 
 	// ignore global time filter
 	f(`options(ignore_global_time_filter=true) foo or bar:in(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:in(baz | fields bar)`)
-	f(`foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar))`)
+	f(`foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar))`)
 	f(`options(ignore_global_time_filter=true) foo or bar:contains_any(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:contains_any(baz | fields bar)`)
-	f(`foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar))`)
+	f(`foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar))`)
 	f(`options(ignore_global_time_filter=true) foo or bar:contains_all(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:contains_all(baz | fields bar)`)
-	f(`foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[1735138603000000000,1736772334999999999] (foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar))`)
+	f(`foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] (foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar))`)
 
 	// allow_partial_response option
-	f(`options(allow_partial_response=true) * | count() x`, `options(allow_partial_response=true) _time:[1735138603000000000,1736772334999999999] | stats count(*) as x`)
-	f(`options(allow_partial_response=false) * | count() x`, `options(allow_partial_response=false) _time:[1735138603000000000,1736772334999999999] | stats count(*) as x`)
+	f(`options(allow_partial_response=true) * | count() x`, `options(allow_partial_response=true) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) as x`)
+	f(`options(allow_partial_response=false) * | count() x`, `options(allow_partial_response=false) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) as x`)
 
 	// time_offset option
-	f(`options(time_offset=1d3h534ms) *`, `options(time_offset=1d3h534ms) _time:[1735138603000000000,1736772334999999999]`)
-	f(`options(time_offset = -1.5h) _time:2024Z`, `options(time_offset=-1.5h) _time:[1735138603000000000,1736772334999999999] _time:2024Z`)
-	f(`options(time_offset = -1.5h) _time:2025Z offset 3.5h`, `options(time_offset=-1.5h) _time:[1735138603000000000,1736772334999999999] _time:2025Z offset 3.5h`)
-	f(`options(time_offset = -1.5h) _time:2025Z offset -3.5h`, `options(time_offset=-1.5h) _time:[1735138603000000000,1736772334999999999] _time:2025Z offset -3.5h`)
-	f(`options(time_offset=1h) id:in(_time:2025Z | keep id)`, `options(time_offset=1h) _time:[1735138603000000000,1736772334999999999] id:in(_time:[1735138603000000000,1736772334999999999] _time:2025Z | fields id)`)
-	f(`id:in(options(time_offset=1h) _time:2025Z | keep id)`, `_time:[1735138603000000000,1736772334999999999] id:in(options(time_offset=1h) _time:[1735138603000000000,1736772334999999999] _time:2025Z | fields id)`)
-	f(`options(time_offset=1d) id:in(options(time_offset=1h) _time:2025Z | keep id)`, `options(time_offset=1d) _time:[1735138603000000000,1736772334999999999] id:in(options(time_offset=1h) _time:[1735138603000000000,1736772334999999999] _time:2025Z | fields id)`)
+	f(`options(time_offset=1d3h534ms) *`, `options(time_offset=1d3h534ms) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z]`)
+	f(`options(time_offset = -1.5h) _time:2024Z`, `options(time_offset=-1.5h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2024Z`)
+	f(`options(time_offset = -1.5h) _time:2025Z offset 3.5h`, `options(time_offset=-1.5h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2025Z offset 3.5h`)
+	f(`options(time_offset = -1.5h) _time:2025Z offset -3.5h`, `options(time_offset=-1.5h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2025Z offset -3.5h`)
+	f(`options(time_offset=1h) id:in(_time:2025Z | keep id)`, `options(time_offset=1h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] id:in(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2025Z | fields id)`)
+	f(`id:in(options(time_offset=1h) _time:2025Z | keep id)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] id:in(options(time_offset=1h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2025Z | fields id)`)
+	f(`options(time_offset=1d) id:in(options(time_offset=1h) _time:2025Z | keep id)`, `options(time_offset=1d) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] id:in(options(time_offset=1h) _time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] _time:2025Z | fields id)`)
 
 	// join pipe
-	f(`foo | join by (x) (bar)`, `_time:[1735138603000000000,1736772334999999999] foo | join by (x) (_time:[1735138603000000000,1736772334999999999] bar)`)
-	f(`foo | join by (x) (options(ignore_global_time_filter=true) bar)`, `_time:[1735138603000000000,1736772334999999999] foo | join by (x) (options(ignore_global_time_filter=true) bar)`)
+	f(`foo | join by (x) (bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] foo | join by (x) (_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] bar)`)
+	f(`foo | join by (x) (options(ignore_global_time_filter=true) bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] foo | join by (x) (options(ignore_global_time_filter=true) bar)`)
 
 	// union pipe
-	f(`foo | union (bar)`, `_time:[1735138603000000000,1736772334999999999] foo | union (_time:[1735138603000000000,1736772334999999999] bar)`)
-	f(`foo | union (options(ignore_global_time_filter=true) bar)`, `_time:[1735138603000000000,1736772334999999999] foo | union (options(ignore_global_time_filter=true) bar)`)
+	f(`foo | union (bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] foo | union (_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] bar)`)
+	f(`foo | union (options(ignore_global_time_filter=true) bar)`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] foo | union (options(ignore_global_time_filter=true) bar)`)
 	f(`options(ignore_global_time_filter=1) foo | union (bar)`, `options(ignore_global_time_filter=true) foo | union (bar)`)
 
 	// stats pipe with if conditions
-	f(`* | count() if (x:in(y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:in(_time:[1735138603000000000,1736772334999999999] y | fields x) abc) as a, count(*) as b`)
-	f(`* | count() if (x:in(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:in(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
-	f(`* | count() if (x:contains_any(y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:contains_any(_time:[1735138603000000000,1736772334999999999] y | fields x) abc) as a, count(*) as b`)
-	f(`* | count() if (x:contains_any(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:contains_any(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
-	f(`* | count() if (x:contains_all(y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:contains_all(_time:[1735138603000000000,1736772334999999999] y | fields x) abc) as a, count(*) as b`)
-	f(`* | count() if (x:contains_all(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[1735138603000000000,1736772334999999999] | stats count(*) if (x:contains_all(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:in(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:in(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:in(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:in(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_any(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:contains_any(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_any(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:contains_any(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_all(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:contains_all(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_all(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats count(*) if (x:contains_all(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
 
 	// other pipes with if conditions
-	f(`* | format if (x:in(y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:in(_time:[1735138603000000000,1736772334999999999] y | fields x)) foo`)
-	f(`* | format if (x:in(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:in(options(ignore_global_time_filter=true) y | fields x)) foo`)
-	f(`* | format if (x:contains_any(y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:contains_any(_time:[1735138603000000000,1736772334999999999] y | fields x)) foo`)
-	f(`* | format if (x:contains_any(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:contains_any(options(ignore_global_time_filter=true) y | fields x)) foo`)
-	f(`* | format if (x:contains_all(y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:contains_all(_time:[1735138603000000000,1736772334999999999] y | fields x)) foo`)
-	f(`* | format if (x:contains_all(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[1735138603000000000,1736772334999999999] | format if (x:contains_all(options(ignore_global_time_filter=true) y | fields x)) foo`)
+	f(`* | format if (x:in(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:in(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x)) foo`)
+	f(`* | format if (x:in(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:in(options(ignore_global_time_filter=true) y | fields x)) foo`)
+	f(`* | format if (x:contains_any(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:contains_any(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x)) foo`)
+	f(`* | format if (x:contains_any(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:contains_any(options(ignore_global_time_filter=true) y | fields x)) foo`)
+	f(`* | format if (x:contains_all(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:contains_all(_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] y | fields x)) foo`)
+	f(`* | format if (x:contains_all(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | format if (x:contains_all(options(ignore_global_time_filter=true) y | fields x)) foo`)
 
 	// queries with rate and sum_rate (the time filter must propagate to them)
-	f(`* | rate() x`, `_time:[1735138603000000000,1736772334999999999] | stats rate() as x`)
-	f(`* | rate_sum(requests) x`, `_time:[1735138603000000000,1736772334999999999] | stats rate_sum(requests) as x`)
-	f(`* | join on (x) (* | rate() y) | rate() z`, `_time:[1735138603000000000,1736772334999999999] | join by (x) (_time:[1735138603000000000,1736772334999999999] | stats rate() as y) | stats rate() as z`)
+	f(`* | rate() x`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats rate() as x`)
+	f(`* | rate_sum(requests) x`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats rate_sum(requests) as x`)
+	f(`* | join on (x) (* | rate() y) | rate() z`, `_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | join by (x) (_time:[2024-12-25T14:56:43.000000000Z,2025-01-13T12:45:34.999999999Z] | stats rate() as y) | stats rate() as z`)
 }
 
 func TestQuery_AddTimeFilter_StepPropagation(t *testing.T) {
