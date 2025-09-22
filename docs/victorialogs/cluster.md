@@ -113,7 +113,7 @@ See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#partial
 The real HA scheme for both data ingestion and querying can be built only when copies of logs are sent into independent VictoriaLogs instances (or clusters)
 located in fully independent availability zones (datacenters). If an AZ becomes unavailable, then new logs continue to be written to the remaining AZ,
 while queries return full responses from the remaining AZ. When the AZ becomes available, then the pending buffered logs can be written to it, so the AZ
-can be used for querying full responses. This HA sheme can be build with the help of [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/)
+can be used for querying full responses. This HA sheme can be built with the help of [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/)
 for data replication and buffering, and [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) for data querying:
 
 ```mermaid
