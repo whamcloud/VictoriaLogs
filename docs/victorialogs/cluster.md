@@ -89,12 +89,14 @@ For advanced setups, refer to the [multi-level cluster setup](https://docs.victo
 
 ## High availability
 
-VictoriaLogs cluster provides high availability for data ingestion path. It continues accepting incoming logs if some of `vlstorage` nodes are temporarily unavailable.
+VictoriaLogs cluster provides high availability for [data ingestion path](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+It continues accepting incoming logs if some of `vlstorage` nodes are temporarily unavailable.
 `vlinsert` evenly spreads new logs among the remaining available `vlstorage` nodes in this case, so newly ingested logs are properly stored and are available for querying
 without any delays. This allows performing maintenance tasks for `vlstorage` nodes (such as upgrades, configuration updates, etc.) without worrying of the data loss.
 Make sure that the remaining `vlstorage` nodes have enough capacity for the increased data ingestion workload, in order to avoid availability problems.
 
-VictoriaLogs cluster returns `502 Bad Gateway` errors for incoming queries if some of `vlstorage` nodes are unavailable. This guarantees consistent query responses
+VictoriaLogs cluster returns `502 Bad Gateway` errors for [incoming queries](https://docs.victoriametrics.com/victorialogs/querying/)
+if some of `vlstorage` nodes are unavailable. This guarantees consistent query responses
 (e.g. all the stored logs are taken into account during the query) during maintenance tasks at `vlstorage` nodes. Note that all the newly incoming logs are properly stored
 to the remaining `vlstorage` nodes - see the paragraph above, so they become available for querying immediately after all the `vlstorage` nodes return back to the cluster.
 
