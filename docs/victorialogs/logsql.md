@@ -4923,6 +4923,8 @@ logs for the last 5 minutes when some of the `vlstorage` nodes are unavailable (
 options(allow_partial_response=true) _time:5m
 ```
 
+See also [partial response docs](https://docs.victoriametrics.com/victorialogs/querying/#partial-responses).
+
 ## Troubleshooting
 
 LogsQL works well for most use cases when set up right. But sometimes you will see slow queries. The most common reason is querying too many logs without enough filtering.
