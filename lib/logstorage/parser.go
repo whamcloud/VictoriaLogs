@@ -646,6 +646,12 @@ func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 //
 // The returned query is nil if q cannot be used for optimized querying of the last N results.
 func (q *Query) GetLastNResultsQuery() (qOpt *Query, offset uint64, limit uint64) {
+	start, end := q.GetFilterTimeRange()
+	if !CanApplyLastNResultsOptimization(start, end) {
+		// It is faster to execute the query as is on such a small time range.
+		return nil, 0, 0
+	}
+
 	pipes := q.pipes
 
 	// Remember the trailing 'fields' and 'delete' pipes - they are moved in front of `sort` pipe below.
@@ -689,6 +695,11 @@ func (q *Query) GetLastNResultsQuery() (qOpt *Query, offset uint64, limit uint64
 
 	// The query is eligible for last N results optimization.
 	return qCopy, offset, limit
+}
+
+// CanApplyLastNResultsOptimization returns true if there is sense for applying 'last N' optimization for the query on the time range [start, end]
+func CanApplyLastNResultsOptimization(start, end int64) bool {
+	return end/2-start/2 > nsecsPerSecond
 }
 
 func getOffsetLimitFromPipe(p pipe) (uint64, uint64, bool) {
