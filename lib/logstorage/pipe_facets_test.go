@@ -68,6 +68,28 @@ func TestPipeFacets(t *testing.T) {
 		},
 	})
 
+	f("facets max_values_per_field 2", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `asd54`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"field_name", "c"},
+			{"field_value", "d"},
+			{"hits", "1"},
+		},
+	})
+
 	f("facets 1 keep_const_fields", [][]Field{
 		{
 			{"a", `2`},

@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe): properly skip field names with more than `max_values_per_field` unique values. Previously these fields could be returned with incomplete number of hits.
+
 ## [v1.34.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.34.0)
 
 Released at 2025-09-22
