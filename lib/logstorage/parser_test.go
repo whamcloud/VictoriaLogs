@@ -1503,6 +1503,16 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`_time`, `_time`)
 	f(`x:_time`, `x:_time`)
 
+	// contains_common_case filter
+	f("contains_common_case(foo)", "contains_common_case(foo)")
+	f("contains_common_case(foo, 'bar,baz')", `contains_common_case(foo,"bar,baz")`)
+	f("foo:contains_common_case(foo, 'bar,baz')", `foo:contains_common_case(foo,"bar,baz")`)
+
+	// equals_common_case filter
+	f("equals_common_case(foo)", "equals_common_case(foo)")
+	f("equals_common_case(foo, 'bar,baz')", `equals_common_case(foo,"bar,baz")`)
+	f("foo:equals_common_case(foo, 'bar,baz')", `foo:equals_common_case(foo,"bar,baz")`)
+
 	// eq_field filter
 	f("eq_field(foo)", "eq_field(foo)")
 	f(`"a":eq_field('b')`, "a:eq_field(b)")
@@ -2358,6 +2368,14 @@ func TestParseQuery_Failure(t *testing.T) {
 
 	// unknown function
 	f(`unknown_function(foo)`)
+
+	// invalid contains_common_case
+	f(`contains_common_case(`)
+	f(`contains_common_case(foo bar)`)
+
+	// invalid equals_common_case
+	f(`equals_common_case(`)
+	f(`equals_common_case(foo bar)`)
 
 	// invalid eq_field
 	f(`eq_field(`)

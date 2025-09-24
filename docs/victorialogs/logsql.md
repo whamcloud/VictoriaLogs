@@ -279,6 +279,8 @@ The list of LogsQL filters:
 - [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing
   at least one of the provided [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) / phrases
 - [Case-insensitive filter](https://docs.victoriametrics.com/victorialogs/logsql/#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
+- [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter) - matches logs with log fields containing the given words and phrases with cases according to the given pattern
+- [`equals_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#equals_common_case-filter) - matches logs with log fields equal to the given words and phrases with cases according to the given pattern
 - [Sequence filter](https://docs.victoriametrics.com/victorialogs/logsql/#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) - matches logs for the given regexp
 - [Range filter](https://docs.victoriametrics.com/victorialogs/logsql/#range-filter) - matches logs with numeric [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given range
@@ -1104,17 +1106,72 @@ For example, the following query matches `log:level` field containing `error` [w
 
 Performance tips:
 
-- Prefer using case-sensitive filter over case-insensitive filter.
+- Prefer using [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter) over case-insensitive filter.
+- Prefer using case-sensitive filters such as [word filter](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter)
+  and [phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter) over case-insensitive filter.
 - Prefer moving [word filter](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter), [phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter) and [prefix filter](https://docs.victoriametrics.com/victorialogs/logsql/#prefix-filter) in front of case-sensitive filter
   when using [logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
 - See [other performance tips](https://docs.victoriametrics.com/victorialogs/logsql/#performance-tips).
 
 See also:
 
+- [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter)
 - [Word filter](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter)
 - [Phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter)
 - [Exact-filter](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
 - [Logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter)
+
+### equals_common_case filter
+
+The `field_name:equals_common_case(phrase1, ..., phraseN)` filter searches for logs where the `field_name` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+equals the following [phrases](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter) and [words](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+- the given phrases - `phrase1`, ..., `phraseN`
+- uppercase and lowercase phrases
+- individual phrases where every uppercase letter is independently replaced with the corresponding lowercase letter
+
+For example, `_msg:equals_common_case("VictoriaMetrics")` finds logs where the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+equals to one of the following words [words](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+- VictoriaMetrics
+- VICTORIAMETRICS
+- victoriametrics
+- Victoriametrics
+- victoriaMetrics
+
+If you need to find logs with log fields containing to the common case words or phrases,
+then use [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter).
+
+See also:
+
+- [case-insensitive filter](https://docs.victoriametrics.com/victorialogs/logsql/#case-insensitive-filter)
+- [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter)
+
+### contains_common_case filter
+
+The `field_name:contains_common_case(phrase1, ..., phraseN)` filter searches for logs where the `field_name` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+contains the following [phrases](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter) and [words](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+- the given phrases - `phrase1`, ..., `phraseN`
+- uppercase and lowercase phrases
+- individual phrases where every uppercase letter is independently replaced with the corresponding lowercase letter
+
+For example, `_msg:contains_common_case("VictoriaMetrics")` finds logs where the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+contains at least one of the following words [words](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+- VictoriaMetrics
+- VICTORIAMETRICS
+- victoriametrics
+- Victoriametrics
+- victoriaMetrics
+
+If you need to find logs with log fields equal to the common case words or phrases,
+then use [`equals_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#equals_common_case-filter).
+
+See also:
+
+- [case-insensitive filter](https://docs.victoriametrics.com/victorialogs/logsql/#case-insensitive-filter)
+- [`equals_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#equals_common_case-filter)
 
 ### Sequence filter
 

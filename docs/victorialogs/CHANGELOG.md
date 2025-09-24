@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`equals_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#equals_common_case-filter) and [`contains_common_case` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_common_case-filter). These filters can be used as faster alternatives to [`i(...)` filter](https://docs.victoriametrics.com/victorialogs/logsql/#case-insensitive-filter). For example, `_msg:contains_common_case("VictoriaMetrics")` matches logs with the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing at least one of the following [words](https://docs.victoriametrics.com/victorialogs/logsql/#word): `VictoriaMetrics`, `victoriametrics`, `VICTORIAMETRICS`, `Victoriametrics` or `victoriaMetrics`.
+
 * BUGFIX: [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe): properly skip field names with more than `max_values_per_field` unique values. Previously these fields could be returned with incomplete number of hits.
 
 ## [v1.34.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.34.0)

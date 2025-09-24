@@ -1995,8 +1995,12 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterContainsAll(lex, fieldName)
 	case lex.isKeyword("contains_any"):
 		return parseFilterContainsAny(lex, fieldName)
+	case lex.isKeyword("contains_common_case"):
+		return parseFilterContainsCommonCase(lex, fieldName)
 	case lex.isKeyword("eq_field"):
 		return parseFilterEqField(lex, fieldName)
+	case lex.isKeyword("equals_common_case"):
+		return parseFilterEqualsCommonCase(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -2300,6 +2304,36 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 		fieldName: getCanonicalColumnName(fieldName),
 	}
 	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
+func parseFilterContainsCommonCase(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+
+	phrases, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'contains_common_case(...)' args: %w", err)
+	}
+
+	fi, err := newFilterContainsCommonCase(fieldName, phrases)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'contains_common_case(...)': %w", err)
+	}
+	return fi, nil
+}
+
+func parseFilterEqualsCommonCase(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+
+	phrases, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'equals_common_case(...)' args: %w", err)
+	}
+
+	fi, err := newFilterEqualsCommonCase(fieldName, phrases)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'equals_common_case(...)': %w", err)
+	}
+	return fi, nil
 }
 
 func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter, error) {
@@ -3757,7 +3791,9 @@ var reservedKeywords = func() map[string]struct{} {
 		// functions
 		"contains_all",
 		"contains_any",
+		"contains_common_case",
 		"eq_field",
+		"equals_common_case",
 		"exact",
 		"i",
 		"in",
