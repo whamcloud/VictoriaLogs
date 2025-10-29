@@ -1,0 +1,67 @@
+# whamCloud Custom Makefile for VictoriaLogs
+# This file is separate from the upstream Makefile to avoid merge conflicts
+# when syncing with upstream VictoriaMetrics/VictoriaLogs
+
+# Include the main Makefile for base targets
+include Makefile
+
+# whamCloud specific variables
+# Allow VERSION to override WHAMCLOUD_VERSION
+ifdef VERSION
+WHAMCLOUD_VERSION := $(VERSION)
+else
+WHAMCLOUD_VERSION ?= 1.0.0
+endif
+
+WHAMCLOUD_PKG_TAG := v$(WHAMCLOUD_VERSION)
+
+# Override PKG_TAG for whamCloud builds
+export PKG_TAG := $(WHAMCLOUD_PKG_TAG)
+
+.PHONY: whamcloud-release whamcloud-clean whamcloud-release-victoria-logs-linux-amd64
+
+# Main target to build victoria-logs
+whamcloud-release: whamcloud-clean
+	@echo "Building whamCloud VictoriaLogs $(WHAMCLOUD_PKG_TAG) for linux-amd64..."
+	@$(MAKE) -f Makefile.whamcloud whamcloud-release-victoria-logs-linux-amd64 WHAMCLOUD_VERSION=$(WHAMCLOUD_VERSION)
+	@echo "Build complete! Tarball is in bin/"
+	@ls -lh bin/victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz
+
+# Build victoria-logs for linux-amd64
+whamcloud-release-victoria-logs-linux-amd64:
+	@echo "Building victoria-logs for linux-amd64..."
+	GOOS=linux GOARCH=amd64 $(MAKE) victoria-logs-linux-amd64-prod
+	@echo "Creating tarball..."
+	cd bin && \
+		tar $(TAR_OWNERSHIP) --transform="s|victoria-logs-linux-amd64-prod|victoria-logs|" \
+			-czf victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz \
+			victoria-logs-linux-amd64-prod && \
+		sha256sum victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz \
+			> victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG)_checksums.txt
+	@echo "Cleaning up intermediate binary..."
+	cd bin && rm -f victoria-logs-linux-amd64-prod
+
+# Clean whamCloud build artifacts
+whamcloud-clean:
+	@echo "Cleaning whamCloud build artifacts..."
+	rm -f bin/victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz
+	rm -f bin/victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG)_checksums.txt
+
+# Build with custom version
+whamcloud-release-version:
+ifndef VERSION
+	$(error VERSION is not set. Usage: make whamcloud-release-version VERSION=1.0.1)
+endif
+	WHAMCLOUD_VERSION=$(VERSION) $(MAKE) whamcloud-release
+
+# Help target
+whamcloud-help:
+	@echo "whamCloud VictoriaLogs Build Targets:"
+	@echo ""
+	@echo "  whamcloud-release                    - Build tarball for linux-amd64"
+	@echo "  whamcloud-release-version VERSION=X  - Build with custom version number"
+	@echo "  whamcloud-clean                      - Clean whamCloud build artifacts"
+	@echo ""
+	@echo "Current version: $(WHAMCLOUD_PKG_TAG)"
+	@echo "Output: victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz"
+
