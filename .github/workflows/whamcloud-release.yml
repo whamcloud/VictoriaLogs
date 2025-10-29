@@ -19,7 +19,7 @@ permissions:
 jobs:
   build-and-release:
     name: Build and Release VictoriaLogs
-    runs-on: co-es-10-rocky8-x8664-9-victoria-logs
+    runs-on: [self-hosted, victoria-logs]
 
     steps:
       - name: Code checkout
