@@ -38,6 +38,8 @@ jobs:
           echo "Build artifacts:"
           ls -lh bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
           ls -lh bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+          ls -lh bin/vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          ls -lh bin/vlutils-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
 
       - name: Create Release
         id: create_release
@@ -54,12 +56,21 @@ jobs:
 
             ## Compatibility
 
-            This is a statically-linked Go binary that works on:
+            These are statically-linked Go binaries that work on:
             - Enterprise Linux 8/9 (CentOS Stream, Rocky Linux, AlmaLinux)
             - Red Hat Enterprise Linux 8/9
             - Any modern Linux distribution with AMD64 architecture
 
+            ## What's Included
+
+            This release contains:
+            - **victoria-logs** - Main VictoriaLogs server for log management and analytics
+            - **vlagent** - Log collection agent for shipping logs to VictoriaLogs
+            - **vlogscli** - Interactive command-line tool for querying VictoriaLogs
+
             ## Installation
+
+            ### VictoriaLogs Server
 
             ```bash
             # Download the tarball
@@ -71,12 +82,48 @@ jobs:
 
             # Extract and run
             tar -xzf victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
-            ./victoria-logs
+            ./victoria-logs-prod -storageDataPath=/var/lib/victorialogs
             ```
+
+            ### vlagent (Log Collection Agent)
+
+            ```bash
+            # Download the vlutils tarball
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+
+            # Verify checksum (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlutils-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+            sha256sum -c vlutils-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+
+            # Extract
+            tar -xzf vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+
+            # Run vlagent
+            ./vlagent-prod -remoteWrite.url=http://localhost:9428/insert/jsonline
+            ```
+
+            ### vlogscli (Query CLI)
+
+            ```bash
+            # Download the vlutils tarball (if not already downloaded)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+
+            # Extract
+            tar -xzf vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+
+            # Run vlogscli
+            ./vlogscli-prod -datasource.url=http://localhost:9428
+            ```
+
+            ## Documentation
+
+            - [VictoriaLogs Documentation](https://docs.victoriametrics.com/victorialogs/)
+            - [vlagent Documentation](https://docs.victoriametrics.com/victorialogs/vlagent/)
+            - [vlogscli Documentation](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
 
             ## Checksums
 
-            SHA256 checksums are provided to verify integrity.
+            SHA256 checksums are provided for all tarballs to verify integrity.
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
 
@@ -98,6 +145,26 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
           asset_name: victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+          asset_content_type: text/plain
+
+      - name: Upload vlutils tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          asset_name: vlutils-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload vlutils checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/vlutils-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+          asset_name: vlutils-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
           asset_content_type: text/plain
 
       - name: Clean up build artifacts
