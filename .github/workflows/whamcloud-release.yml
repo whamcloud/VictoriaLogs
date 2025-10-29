@@ -1,0 +1,107 @@
+name: whamCloud Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release VictoriaLogs
+    runs-on: [self-hosted, victoria-logs]
+
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build VictoriaLogs tarballs
+        run: |
+          make -f Makefile.whamcloud whamcloud-release VERSION=${{ github.event.inputs.version }}
+        env:
+          WHAMCLOUD_VERSION: ${{ github.event.inputs.version }}
+
+      - name: List build artifacts
+        run: |
+          echo "Build artifacts:"
+          ls -lh bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          ls -lh bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: VictoriaLogs v${{ github.event.inputs.version }}
+          body: |
+            # VictoriaLogs v${{ github.event.inputs.version }}
+
+            whamCloud custom build of VictoriaLogs for Linux AMD64.
+
+            ## Compatibility
+
+            This is a statically-linked Go binary that works on:
+            - Enterprise Linux 8/9 (CentOS Stream, Rocky Linux, AlmaLinux)
+            - Red Hat Enterprise Linux 8/9
+            - Any modern Linux distribution with AMD64 architecture
+
+            ## Installation
+
+            ```bash
+            # Download the tarball
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+
+            # Verify checksum (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+            sha256sum -c victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+
+            # Extract and run
+            tar -xzf victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+            ./victoria-logs
+            ```
+
+            ## Checksums
+
+            SHA256 checksums are provided to verify integrity.
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+
+      - name: Upload tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          asset_name: victoria-logs-linux-amd64-v${{ github.event.inputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+          asset_name: victoria-logs-linux-amd64-v${{ github.event.inputs.version }}_checksums.txt
+          asset_content_type: text/plain
+
+      - name: Clean up build artifacts
+        if: always()
+        run: |
+          make -f Makefile.whamcloud whamcloud-clean VERSION=${{ github.event.inputs.version }}
+
