@@ -66,7 +66,7 @@ jobs:
 
             ## 🚀 Installation Options
 
-            ### Option 1: RPM Packages (Recommended for EL8/EL9/RHEL)
+            ### Option 1: RPM Packages (Recommended for EL8/RHEL8)
 
             #### Enterprise Linux 8 / RHEL 8 / Rocky Linux 8 / AlmaLinux 8
 
@@ -82,26 +82,6 @@ jobs:
             # Download and install vlogscli (optional)
             wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
             sudo dnf install -y ./vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
-
-            # Start services
-            sudo systemctl enable --now victorialogs
-            sudo systemctl status victorialogs
-            ```
-
-            #### Enterprise Linux 9 / RHEL 9 / Rocky Linux 9 / AlmaLinux 9
-
-            ```bash
-            # Download and install victorialogs
-            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-            sudo dnf install -y ./victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-
-            # Download and install vlagent (optional)
-            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-            sudo dnf install -y ./vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-
-            # Download and install vlogscli (optional)
-            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-            sudo dnf install -y ./vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
 
             # Start services
             sudo systemctl enable --now victorialogs
@@ -217,37 +197,20 @@ jobs:
           repository: whamCloud/victorialogs-rpm
           path: victorialogs-rpm
 
-      - name: Build EL8 RPMs using Rocky Linux 8 container
+      - name: Install RPM build tools
+        run: |
+          if ! command -v rpmbuild &> /dev/null; then
+            echo "Installing RPM build tools..."
+            sudo dnf install -y rpm-build rpmdevtools
+          else
+            echo "RPM build tools already installed"
+          fi
+
+      - name: Build EL8 RPMs
+        working-directory: victorialogs-rpm
         run: |
           echo "Building EL8 RPMs for version ${{ github.event.inputs.version }}..."
-          docker run --rm \
-            -v $(pwd)/victorialogs-rpm:/build \
-            -v $(pwd)/VictoriaLogs/bin:/binaries \
-            -w /build \
-            rockylinux:8 \
-            bash -c "
-              set -e
-              echo 'Installing RPM build tools...'
-              dnf install -y rpm-build systemd-rpm-macros rpmdevtools make
-              echo 'Building EL8 RPMs...'
-              make rpm VERSION=${{ github.event.inputs.version }}
-            "
-
-      - name: Build EL9 RPMs using Rocky Linux 9 container
-        run: |
-          echo "Building EL9 RPMs for version ${{ github.event.inputs.version }}..."
-          docker run --rm \
-            -v $(pwd)/victorialogs-rpm:/build \
-            -v $(pwd)/VictoriaLogs/bin:/binaries \
-            -w /build \
-            rockylinux:9 \
-            bash -c "
-              set -e
-              echo 'Installing RPM build tools...'
-              dnf install -y rpm-build systemd-rpm-macros rpmdevtools make
-              echo 'Building EL9 RPMs...'
-              make rpm VERSION=${{ github.event.inputs.version }}
-            "
+          make rpm VERSION=${{ github.event.inputs.version }}
 
       - name: List built RPMs
         working-directory: victorialogs-rpm
@@ -265,16 +228,6 @@ jobs:
           asset_name: victorialogs-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_content_type: application/x-rpm
 
-      - name: Upload victorialogs EL9 RPM
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./victorialogs-rpm/output/victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-          asset_name: victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-          asset_content_type: application/x-rpm
-
       - name: Upload vlagent EL8 RPM
         uses: actions/upload-release-asset@v1
         env:
@@ -285,16 +238,6 @@ jobs:
           asset_name: vlagent-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_content_type: application/x-rpm
 
-      - name: Upload vlagent EL9 RPM
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./victorialogs-rpm/output/vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-          asset_name: vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-          asset_content_type: application/x-rpm
-
       - name: Upload vlogscli EL8 RPM
         uses: actions/upload-release-asset@v1
         env:
@@ -303,16 +246,6 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./victorialogs-rpm/output/vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_name: vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
-          asset_content_type: application/x-rpm
-
-      - name: Upload vlogscli EL9 RPM
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./victorialogs-rpm/output/vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
-          asset_name: vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
           asset_content_type: application/x-rpm
 
       # ========================================
