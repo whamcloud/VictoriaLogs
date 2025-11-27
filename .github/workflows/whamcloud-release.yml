@@ -217,20 +217,37 @@ jobs:
           repository: whamCloud/victorialogs-rpm
           path: victorialogs-rpm
 
-      - name: Install RPM build tools
+      - name: Build EL8 RPMs using Rocky Linux 8 container
         run: |
-          if ! command -v rpmbuild &> /dev/null; then
-            echo "Installing RPM build tools..."
-            sudo dnf install -y rpm-build rpmdevtools
-          else
-            echo "RPM build tools already installed"
-          fi
+          echo "Building EL8 RPMs for version ${{ github.event.inputs.version }}..."
+          docker run --rm \
+            -v $(pwd)/victorialogs-rpm:/build \
+            -v $(pwd)/VictoriaLogs/bin:/binaries \
+            -w /build \
+            rockylinux:8 \
+            bash -c "
+              set -e
+              echo 'Installing RPM build tools...'
+              dnf install -y rpm-build systemd-rpm-macros rpmdevtools
+              echo 'Building EL8 RPMs...'
+              make rpm VERSION=${{ github.event.inputs.version }}
+            "
 
-      - name: Build RPMs for EL8 and EL9
-        working-directory: victorialogs-rpm
+      - name: Build EL9 RPMs using Rocky Linux 9 container
         run: |
-          echo "Building RPMs for version ${{ github.event.inputs.version }}..."
-          make rpm VERSION=${{ github.event.inputs.version }}
+          echo "Building EL9 RPMs for version ${{ github.event.inputs.version }}..."
+          docker run --rm \
+            -v $(pwd)/victorialogs-rpm:/build \
+            -v $(pwd)/VictoriaLogs/bin:/binaries \
+            -w /build \
+            rockylinux:9 \
+            bash -c "
+              set -e
+              echo 'Installing RPM build tools...'
+              dnf install -y rpm-build systemd-rpm-macros rpmdevtools
+              echo 'Building EL9 RPMs...'
+              make rpm VERSION=${{ github.event.inputs.version }}
+            "
 
       - name: List built RPMs
         working-directory: victorialogs-rpm
