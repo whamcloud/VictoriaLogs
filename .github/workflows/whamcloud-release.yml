@@ -88,6 +88,26 @@ jobs:
             sudo systemctl status victorialogs
             ```
 
+            #### Enterprise Linux 9 / RHEL 9 / Rocky Linux 9 / AlmaLinux 9
+
+            ```bash
+            # Download and install victorialogs
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+            sudo dnf install -y ./victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+
+            # Download and install vlagent (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+            sudo dnf install -y ./vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+
+            # Download and install vlogscli (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+            sudo dnf install -y ./vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+
+            # Start services
+            sudo systemctl enable --now victorialogs
+            sudo systemctl status victorialogs
+            ```
+
             ### Option 2: Tarball Installation (Any Linux Distribution)
 
             #### VictoriaLogs Server
@@ -191,39 +211,82 @@ jobs:
       # RPM Building Section
       # ========================================
 
+      - name: Clean up build artifacts
+        if: always()
+        working-directory: VictoriaLogs
+        run: |
+          make -f Makefile.whamcloud whamcloud-clean VERSION=${{ github.event.inputs.version }}
+
+  # ========================================
+  # RPM Building Jobs (EL8 and EL9)
+  # ========================================
+
+  build-el8-rpms:
+    name: Build Rocky Linux 8 RPMs
+    needs: build-and-release
+    runs-on: [self-hosted, victoria-logs]
+    steps:
+      - name: Checkout VictoriaLogs repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          path: VictoriaLogs
+
+      - name: Build VictoriaLogs binaries
+        working-directory: VictoriaLogs
+        run: |
+          make -f Makefile.whamcloud whamcloud-release VERSION=${{ github.event.inputs.version }}
+        env:
+          WHAMCLOUD_VERSION: ${{ github.event.inputs.version }}
+
       - name: Checkout victorialogs-rpm repository
         uses: actions/checkout@v5
         with:
           repository: whamCloud/victorialogs-rpm
           path: victorialogs-rpm
 
-      - name: Install RPM build tools
-        run: |
-          if ! command -v rpmbuild &> /dev/null; then
-            echo "Installing RPM build tools..."
-            sudo dnf install -y rpm-build rpmdevtools
-          else
-            echo "RPM build tools already installed"
-          fi
-
-      - name: Build EL8 RPMs
-        working-directory: victorialogs-rpm
+      - name: Build EL8 RPMs in Rocky Linux 8 container
         run: |
           echo "Building EL8 RPMs for version ${{ github.event.inputs.version }}..."
-          make rpm VERSION=${{ github.event.inputs.version }}
+          docker run --rm \
+            -v $(pwd)/victorialogs-rpm:/build \
+            -v $(pwd)/VictoriaLogs/bin:/binaries:ro \
+            -w /build \
+            rockylinux:8 \
+            bash -c "
+              set -e
+              echo 'Installing RPM build tools...'
+              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros
+              echo 'Building EL8 RPMs...'
+              make rpm VERSION=${{ github.event.inputs.version }}
+            "
 
-      - name: List built RPMs
+      - name: List and verify built EL8 RPMs
         working-directory: victorialogs-rpm
         run: |
-          echo "Built RPMs:"
+          echo "Built EL8 RPMs:"
           ls -lh output/*.rpm
+          echo ""
+          echo "Verifying RPM metadata:"
+          for rpm in output/*.rpm; do
+            echo "=== $rpm ==="
+            rpm -qip "$rpm" | grep -E "Name|Version|Release|Architecture|Build Host"
+          done
+
+      - name: Get release upload URL
+        id: get_release
+        run: |
+          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ github.event.inputs.version }}" \
+            | jq -r '.upload_url')
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
 
       - name: Upload victorialogs EL8 RPM
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./victorialogs-rpm/output/victorialogs-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_name: victorialogs-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_content_type: application/x-rpm
@@ -233,7 +296,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./victorialogs-rpm/output/vlagent-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_name: vlagent-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_content_type: application/x-rpm
@@ -243,24 +306,108 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./victorialogs-rpm/output/vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_name: vlogscli-${{ github.event.inputs.version }}-1.el8.x86_64.rpm
           asset_content_type: application/x-rpm
 
-      # ========================================
-      # Cleanup Section
-      # ========================================
-
-      - name: Clean up build artifacts
-        if: always()
-        working-directory: VictoriaLogs
-        run: |
-          make -f Makefile.whamcloud whamcloud-clean VERSION=${{ github.event.inputs.version }}
-
-      - name: Clean up RPM build artifacts
+      - name: Clean up EL8 RPM build artifacts
         if: always()
         working-directory: victorialogs-rpm
+        run: make clean
+
+  build-el9-rpms:
+    name: Build Rocky Linux 9 RPMs
+    needs: build-and-release
+    runs-on: [self-hosted, victoria-logs]
+    steps:
+      - name: Checkout VictoriaLogs repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          path: VictoriaLogs
+
+      - name: Build VictoriaLogs binaries
+        working-directory: VictoriaLogs
         run: |
-          make clean
+          make -f Makefile.whamcloud whamcloud-release VERSION=${{ github.event.inputs.version }}
+        env:
+          WHAMCLOUD_VERSION: ${{ github.event.inputs.version }}
+
+      - name: Checkout victorialogs-rpm repository
+        uses: actions/checkout@v5
+        with:
+          repository: whamCloud/victorialogs-rpm
+          path: victorialogs-rpm
+
+      - name: Build EL9 RPMs in Rocky Linux 9 container
+        run: |
+          echo "Building EL9 RPMs for version ${{ github.event.inputs.version }}..."
+          docker run --rm \
+            -v $(pwd)/victorialogs-rpm:/build \
+            -v $(pwd)/VictoriaLogs/bin:/binaries:ro \
+            -w /build \
+            rockylinux:9 \
+            bash -c "
+              set -e
+              echo 'Installing RPM build tools...'
+              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros
+              echo 'Building EL9 RPMs...'
+              make rpm VERSION=${{ github.event.inputs.version }}
+            "
+
+      - name: List and verify built EL9 RPMs
+        working-directory: victorialogs-rpm
+        run: |
+          echo "Built EL9 RPMs:"
+          ls -lh output/*.rpm
+          echo ""
+          echo "Verifying RPM metadata:"
+          for rpm in output/*.rpm; do
+            echo "=== $rpm ==="
+            rpm -qip "$rpm" | grep -E "Name|Version|Release|Architecture|Build Host"
+          done
+
+      - name: Get release upload URL
+        id: get_release
+        run: |
+          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ github.event.inputs.version }}" \
+            | jq -r '.upload_url')
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Upload victorialogs EL9 RPM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./victorialogs-rpm/output/victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_name: victorialogs-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_content_type: application/x-rpm
+
+      - name: Upload vlagent EL9 RPM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./victorialogs-rpm/output/vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_name: vlagent-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_content_type: application/x-rpm
+
+      - name: Upload vlogscli EL9 RPM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./victorialogs-rpm/output/vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_name: vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+          asset_content_type: application/x-rpm
+
+      - name: Clean up EL9 RPM build artifacts
+        if: always()
+        working-directory: victorialogs-rpm
+        run: make clean
 
