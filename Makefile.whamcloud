@@ -45,8 +45,8 @@ whamcloud-release-victoria-logs-linux-amd64:
 		tar $(TAR_OWNERSHIP) -czf victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz victoria-logs-prod && \
 		sha256sum victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz \
 			> victoria-logs-linux-amd64-$(WHAMCLOUD_PKG_TAG)_checksums.txt
-	@echo "Cleaning up intermediate binaries..."
-	cd bin && rm -f victoria-logs-linux-amd64-prod victoria-logs-prod
+	@echo "Keeping binaries for RPM building..."
+	@echo "Note: victoria-logs-linux-amd64-prod kept in bin/ for RPM packaging"
 
 # Build vlutils (vlagent + vlogscli) for linux-amd64
 whamcloud-release-vlutils-linux-amd64:
@@ -60,8 +60,8 @@ whamcloud-release-vlutils-linux-amd64:
 		tar $(TAR_OWNERSHIP) -czf vlutils-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz vlagent-prod vlogscli-prod && \
 		sha256sum vlutils-linux-amd64-$(WHAMCLOUD_PKG_TAG).tar.gz vlagent-prod vlogscli-prod \
 			| sed 's/-linux-amd64-prod/-prod/' > vlutils-linux-amd64-$(WHAMCLOUD_PKG_TAG)_checksums.txt
-	@echo "Cleaning up intermediate binaries..."
-	cd bin && rm -f vlagent-linux-amd64-prod vlogscli-linux-amd64-prod vlagent-prod vlogscli-prod
+	@echo "Keeping binaries for RPM building..."
+	@echo "Note: vlagent-linux-amd64-prod and vlogscli-linux-amd64-prod kept in bin/ for RPM packaging"
 
 # Clean whamCloud build artifacts
 whamcloud-clean:
