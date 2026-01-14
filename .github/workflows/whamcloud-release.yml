@@ -256,9 +256,9 @@ jobs:
             bash -c "
               set -e
               echo 'Installing RPM build tools...'
-              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros
+              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros systemd
               echo 'Building EL8 RPMs...'
-              make rpm VERSION=${{ github.event.inputs.version }}
+              make rpm VERSION=${{ github.event.inputs.version }} DISTS=el8
             "
 
       - name: List and verify built EL8 RPMs
@@ -351,9 +351,9 @@ jobs:
             bash -c "
               set -e
               echo 'Installing RPM build tools...'
-              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros
+              dnf install -y make rpm-build rpmdevtools systemd-rpm-macros systemd
               echo 'Building EL9 RPMs...'
-              make rpm VERSION=${{ github.event.inputs.version }}
+              make rpm VERSION=${{ github.event.inputs.version }} DISTS=el9
             "
 
       - name: List and verify built EL9 RPMs
