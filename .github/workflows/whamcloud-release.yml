@@ -74,7 +74,7 @@ jobs:
       # The common path prefix (VictoriaLogs/bin/) is stripped automatically by
       # upload-artifact, so downstream jobs receive flat files under their download path.
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-artifacts-v${{ github.event.inputs.version }}
           path: |
@@ -101,7 +101,7 @@ jobs:
   build-rpms:
     name: Build ${{ matrix.dist }} RPMs
     needs: build-binaries
-    runs-on: [self-hosted, victoria-logs]
+    runs-on: [self-hosted, co-es-di-16]
     strategy:
       fail-fast: true
       matrix:
@@ -124,7 +124,7 @@ jobs:
       #   vlagent-linux-amd64-prod       → /binaries/vlagent-linux-amd64-prod
       #   vlogscli-linux-amd64-prod      → /binaries/vlogscli-linux-amd64-prod
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts-v${{ github.event.inputs.version }}
           path: bin
@@ -161,7 +161,7 @@ jobs:
           done
 
       - name: Upload ${{ matrix.dist }} RPM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rpms-${{ matrix.dist }}-v${{ github.event.inputs.version }}
           path: victorialogs-rpm/output/*.rpm
@@ -186,19 +186,19 @@ jobs:
 
     steps:
       - name: Download tarballs and checksums
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts-v${{ github.event.inputs.version }}
           path: release-assets
 
       - name: Download EL8 RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: rpms-el8-v${{ github.event.inputs.version }}
           path: release-assets
 
       - name: Download EL9 RPMs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: rpms-el9-v${{ github.event.inputs.version }}
           path: release-assets
