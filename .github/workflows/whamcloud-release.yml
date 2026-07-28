@@ -110,6 +110,8 @@ jobs:
             image: rockylinux:8
           - dist: el9
             image: rockylinux:9
+          - dist: el10
+            image: rockylinux/rockylinux:10.2
 
     steps:
       - name: Checkout victorialogs-rpm repository
@@ -160,6 +162,26 @@ jobs:
             rpm -qip "$rpm" | grep -E "Name|Version|Release|Architecture|Build Host"
           done
 
+      - name: Test install ${{ matrix.dist }} RPMs
+        run: |
+          echo "Testing ${{ matrix.dist }} RPM installation in clean container..."
+          docker run --rm \
+            -v $(pwd)/victorialogs-rpm/output:/rpms:ro \
+            ${{ matrix.image }} \
+            bash -c "
+              set -e
+              echo '=== Installing RPMs ==='
+              dnf install -y /rpms/*.rpm
+              echo 'Installation successful!'
+              echo ''
+              echo '=== Verifying binaries are executable ==='
+              /usr/bin/victoria-logs-prod --version
+              /usr/bin/vlagent-prod --version
+              /usr/bin/vlogscli-prod --version
+              echo ''
+              echo '=== All verification checks passed! ==='
+            "
+
       - name: Upload ${{ matrix.dist }} RPM artifacts
         uses: actions/upload-artifact@v5
         with:
@@ -201,6 +223,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: rpms-el9-v${{ github.event.inputs.version }}
+          path: release-assets
+
+      - name: Download EL10 RPMs
+        uses: actions/download-artifact@v4
+        with:
+          name: rpms-el10-v${{ github.event.inputs.version }}
           path: release-assets
 
       - name: List all release assets
@@ -269,6 +297,26 @@ jobs:
             # Download and install vlogscli (optional)
             wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
             sudo dnf install -y ./vlogscli-${{ github.event.inputs.version }}-1.el9.x86_64.rpm
+
+            # Start services
+            sudo systemctl enable --now victorialogs
+            sudo systemctl status victorialogs
+            ```
+
+            #### Enterprise Linux 10 / RHEL 10 / Rocky Linux 10 / AlmaLinux 10
+
+            ```bash
+            # Download and install victorialogs
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/victorialogs-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
+            sudo dnf install -y ./victorialogs-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
+
+            # Download and install vlagent (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlagent-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
+            sudo dnf install -y ./vlagent-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
+
+            # Download and install vlogscli (optional)
+            wget https://github.com/whamCloud/VictoriaLogs/releases/download/v${{ github.event.inputs.version }}/vlogscli-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
+            sudo dnf install -y ./vlogscli-${{ github.event.inputs.version }}-1.el10.x86_64.rpm
 
             # Start services
             sudo systemctl enable --now victorialogs
